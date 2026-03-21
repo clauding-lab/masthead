@@ -49,13 +49,13 @@ export default function BottomTabBar() {
       className="fixed bottom-0 left-0 right-0 z-50 safe-bottom"
       style={{ backgroundColor: 'var(--bg-surface)', borderTop: '1px solid var(--border)' }}
     >
-      <div className="flex items-center justify-around py-2 max-w-lg mx-auto">
+      <div className="flex items-center justify-around pt-1.5 pb-1 max-w-lg mx-auto">
         {tabs.map((tab) => (
           <NavLink
             key={tab.to}
             to={tab.to}
             end={tab.to === '/'}
-            className="flex flex-col items-center gap-0.5 py-1 px-3"
+            className="flex flex-col items-center gap-0 py-0.5 px-3"
           >
             {({ isActive }) => (
               <>

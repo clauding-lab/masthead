@@ -34,6 +34,60 @@
       "paywall": false
     },
     {
+      "id": "financial-express-bd",
+      "name": "Financial Express",
+      "shortName": "FE",
+      "url": "https://thefinancialexpress.com.bd",
+      "feedType": "scrape-js",
+      "category": "bangladesh",
+      "color": "#006B3F",
+      "paywall": false,
+      "selectors": {
+        "articleList": "article",
+        "title": "h3 a",
+        "link": "h3 a@href",
+        "thumbnail": "img@src"
+      }
+    },
+    {
+      "id": "bbc-bangla",
+      "name": "BBC Bangla",
+      "shortName": "BBC-B",
+      "url": "https://www.bbc.com/bengali",
+      "feedUrl": "https://feeds.bbci.co.uk/bengali/rss.xml",
+      "feedType": "rss",
+      "category": "bangladesh",
+      "color": "#BB1919",
+      "paywall": false
+    },
+    {
+      "id": "prothom-alo",
+      "name": "Prothom Alo",
+      "shortName": "PA",
+      "url": "https://www.prothomalo.com/business",
+      "feedUrl": "https://www.prothomalo.com/feed/",
+      "feedType": "rss",
+      "category": "bangladesh",
+      "color": "#ED1C24",
+      "paywall": false
+    },
+    {
+      "id": "bonik-barta",
+      "name": "Bonik Barta",
+      "shortName": "BB-BD",
+      "url": "https://www.bonikbarta.com",
+      "feedType": "scrape-js",
+      "category": "bangladesh",
+      "color": "#1D4ED8",
+      "paywall": false,
+      "selectors": {
+        "articleList": "div.grow.group.relative",
+        "title": "h3 a",
+        "link": "h3 a@href",
+        "thumbnail": "img@src"
+      }
+    },
+    {
       "id": "ft",
       "name": "Financial Times",
       "shortName": "FT",
@@ -78,6 +132,50 @@
       "paywall": false
     },
     {
+      "id": "the-diplomat",
+      "name": "The Diplomat",
+      "shortName": "TD",
+      "url": "https://thediplomat.com",
+      "feedUrl": "https://thediplomat.com/feed/",
+      "feedType": "rss",
+      "category": "macro",
+      "color": "#2C3E50",
+      "paywall": false
+    },
+    {
+      "id": "politico",
+      "name": "Politico",
+      "shortName": "PO",
+      "url": "https://www.politico.com",
+      "feedUrl": "https://rss.politico.com/politics-news.xml",
+      "feedType": "rss",
+      "category": "macro",
+      "color": "#DA2128",
+      "paywall": false
+    },
+    {
+      "id": "al-jazeera",
+      "name": "Al Jazeera",
+      "shortName": "AJ",
+      "url": "https://www.aljazeera.com",
+      "feedUrl": "https://www.aljazeera.com/xml/rss/all.xml",
+      "feedType": "rss",
+      "category": "macro",
+      "color": "#D2A04C",
+      "paywall": false
+    },
+    {
+      "id": "bbc-news",
+      "name": "BBC News",
+      "shortName": "BBC",
+      "url": "https://www.bbc.com",
+      "feedUrl": "https://feeds.bbci.co.uk/news/rss.xml",
+      "feedType": "rss",
+      "category": "macro",
+      "color": "#BB1919",
+      "paywall": false
+    },
+    {
       "id": "techcrunch",
       "name": "TechCrunch",
       "shortName": "TC",
@@ -100,6 +198,28 @@
       "paywall": false
     },
     {
+      "id": "the-verge",
+      "name": "The Verge",
+      "shortName": "TV",
+      "url": "https://www.theverge.com",
+      "feedUrl": "https://www.theverge.com/rss/index.xml",
+      "feedType": "rss",
+      "category": "tech",
+      "color": "#5100FF",
+      "paywall": false
+    },
+    {
+      "id": "the-rundown-ai",
+      "name": "The Rundown AI",
+      "shortName": "AI",
+      "url": "https://www.therundown.ai",
+      "feedUrl": "https://rss.beehiiv.com/feeds/2R3C6Bt5wj.xml",
+      "feedType": "rss",
+      "category": "tech",
+      "color": "#7C3AED",
+      "paywall": false
+    },
+    {
       "id": "bloomberg",
       "name": "Bloomberg",
       "shortName": "BB",
@@ -114,8 +234,8 @@
   "categories": [
     { "id": "bangladesh", "label": "Bangladesh", "icon": "BD" },
     { "id": "global-finance", "label": "Global Finance", "icon": "GF" },
-    { "id": "macro", "label": "Macro & Geopolitics", "icon": "MG" },
-    { "id": "tech", "label": "Technology", "icon": "TC" },
+    { "id": "macro", "label": "Macro", "icon": "MG" },
+    { "id": "tech", "label": "Tech", "icon": "TC" },
     { "id": "markets", "label": "Markets", "icon": "MK" }
   ]
 }

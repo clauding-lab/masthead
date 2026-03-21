@@ -56,17 +56,6 @@
       "paywall": false
     },
     {
-      "id": "ft",
-      "name": "Financial Times",
-      "shortName": "FT",
-      "url": "https://www.ft.com",
-      "feedUrl": "https://www.ft.com/rss/home",
-      "feedType": "rss",
-      "category": "global-finance",
-      "color": "#FFF1E5",
-      "paywall": true
-    },
-    {
       "id": "reuters",
       "name": "Reuters",
       "shortName": "R",
@@ -76,17 +65,6 @@
       "category": "global-finance",
       "color": "#FF8000",
       "paywall": false
-    },
-    {
-      "id": "economist",
-      "name": "The Economist",
-      "shortName": "TE",
-      "url": "https://www.economist.com",
-      "feedUrl": "https://www.economist.com/rss",
-      "feedType": "rss",
-      "category": "macro",
-      "color": "#E3120B",
-      "paywall": true
     },
     {
       "id": "project-syndicate",
@@ -186,24 +164,12 @@
       "category": "tech",
       "color": "#7C3AED",
       "paywall": false
-    },
-    {
-      "id": "bloomberg",
-      "name": "Bloomberg",
-      "shortName": "BB",
-      "url": "https://www.bloomberg.com",
-      "feedUrl": "https://feeds.bloomberg.com/markets/news.rss",
-      "feedType": "rss",
-      "category": "markets",
-      "color": "#472ACB",
-      "paywall": true
     }
   ],
   "categories": [
     { "id": "bangladesh", "label": "Bangladesh", "icon": "BD" },
     { "id": "global-finance", "label": "Global Finance", "icon": "GF" },
     { "id": "macro", "label": "Macro", "icon": "MG" },
-    { "id": "tech", "label": "Tech", "icon": "TC" },
-    { "id": "markets", "label": "Markets", "icon": "MK" }
+    { "id": "tech", "label": "Tech", "icon": "TC" }
   ]
 }

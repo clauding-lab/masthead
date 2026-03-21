@@ -1,0 +1,121 @@
+{
+  "sources": [
+    {
+      "id": "daily-star",
+      "name": "The Daily Star",
+      "shortName": "DS",
+      "url": "https://www.thedailystar.net",
+      "feedUrl": "https://www.thedailystar.net/rss.xml",
+      "feedType": "rss",
+      "category": "bangladesh",
+      "color": "#E31E24",
+      "paywall": false
+    },
+    {
+      "id": "dhaka-tribune",
+      "name": "Dhaka Tribune",
+      "shortName": "DT",
+      "url": "https://www.dhakatribune.com",
+      "feedUrl": "https://www.dhakatribune.com/rss.xml",
+      "feedType": "rss",
+      "category": "bangladesh",
+      "color": "#1A73E8",
+      "paywall": false
+    },
+    {
+      "id": "business-standard-bd",
+      "name": "The Business Standard",
+      "shortName": "TBS",
+      "url": "https://www.tbsnews.net",
+      "feedUrl": "https://www.tbsnews.net/rss.xml",
+      "feedType": "rss",
+      "category": "bangladesh",
+      "color": "#0B3D91",
+      "paywall": false
+    },
+    {
+      "id": "ft",
+      "name": "Financial Times",
+      "shortName": "FT",
+      "url": "https://www.ft.com",
+      "feedUrl": "https://www.ft.com/rss/home",
+      "feedType": "rss",
+      "category": "global-finance",
+      "color": "#FFF1E5",
+      "paywall": true
+    },
+    {
+      "id": "reuters",
+      "name": "Reuters",
+      "shortName": "R",
+      "url": "https://www.reuters.com",
+      "feedUrl": "https://www.reuters.com/rssFeed/worldNews",
+      "feedType": "rss",
+      "category": "global-finance",
+      "color": "#FF8000",
+      "paywall": false
+    },
+    {
+      "id": "economist",
+      "name": "The Economist",
+      "shortName": "TE",
+      "url": "https://www.economist.com",
+      "feedUrl": "https://www.economist.com/rss",
+      "feedType": "rss",
+      "category": "macro",
+      "color": "#E3120B",
+      "paywall": true
+    },
+    {
+      "id": "project-syndicate",
+      "name": "Project Syndicate",
+      "shortName": "PS",
+      "url": "https://www.project-syndicate.org",
+      "feedUrl": "https://www.project-syndicate.org/rss",
+      "feedType": "rss",
+      "category": "macro",
+      "color": "#1B365D",
+      "paywall": false
+    },
+    {
+      "id": "techcrunch",
+      "name": "TechCrunch",
+      "shortName": "TC",
+      "url": "https://techcrunch.com",
+      "feedUrl": "https://techcrunch.com/feed/",
+      "feedType": "rss",
+      "category": "tech",
+      "color": "#0A9E01",
+      "paywall": false
+    },
+    {
+      "id": "hacker-news",
+      "name": "Hacker News",
+      "shortName": "HN",
+      "url": "https://news.ycombinator.com",
+      "feedUrl": "https://hnrss.org/frontpage",
+      "feedType": "rss",
+      "category": "tech",
+      "color": "#FF6600",
+      "paywall": false
+    },
+    {
+      "id": "bloomberg",
+      "name": "Bloomberg",
+      "shortName": "BB",
+      "url": "https://www.bloomberg.com",
+      "feedUrl": "https://feeds.bloomberg.com/markets/news.rss",
+      "feedType": "rss",
+      "category": "markets",
+      "color": "#472ACB",
+      "paywall": true
+    }
+  ],
+  "categories": [
+    { "id": "bangladesh", "label": "Bangladesh", "icon": "BD" },
+    { "id": "global-finance", "label": "Global Finance", "icon": "GF" },
+    { "id": "macro", "label": "Macro & Geopolitics", "icon": "MG" },
+    { "id": "tech", "label": "Technology", "icon": "TC" },
+    { "id": "markets", "label": "Markets", "icon": "MK" }
+  ]
+}

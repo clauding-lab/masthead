@@ -1,0 +1,6 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" rx="0" fill="#FAFAF8"/>
+  <rect x="96" y="128" width="320" height="6" rx="2" fill="#1A1A1A"/>
+  <text x="256" y="316" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="250" font-weight="700" fill="#C2452D">M</text>
+  <rect x="96" y="352" width="320" height="6" rx="2" fill="#1A1A1A"/>
+</svg>

@@ -1,37 +1,35 @@
-import { Hono } from 'hono';
-import { handle } from 'hono/vercel';
-import { cors } from 'hono/cors';
 import { extractArticle } from '../lib/extractor.js';
 
-const app = new Hono().basePath('/api');
+export default async function handler(req, res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-app.use('/*', cors());
-
-app.post('/extract', async (c) => {
-  const body = await c.req.json();
-  const { url, sourceId } = body;
-
-  if (!url) {
-    return c.json({ error: 'URL is required' }, 400);
+  if (req.method === 'OPTIONS') {
+    return res.status(204).end();
   }
 
-  // Basic URL validation
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  const { url, sourceId } = req.body || {};
+
+  if (!url) {
+    return res.status(400).json({ error: 'URL is required' });
+  }
+
   try {
     new URL(url);
   } catch {
-    return c.json({ error: 'Invalid URL' }, 400);
+    return res.status(400).json({ error: 'Invalid URL' });
   }
 
   try {
     const article = await extractArticle(url, sourceId);
-    return c.json(article);
+    return res.status(200).json(article);
   } catch (err) {
     console.error('Extraction error:', err.message);
-    return c.json(
-      { error: 'Failed to extract article', message: err.message },
-      500
-    );
+    return res.status(500).json({ error: 'Failed to extract article', message: err.message });
   }
-});
-
-export default handle(app);
+}

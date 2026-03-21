@@ -1,23 +1,26 @@
-import { Hono } from 'hono';
-import { handle } from 'hono/vercel';
-import { cors } from 'hono/cors';
 import { fetchAllFeeds } from '../lib/feedParser.js';
 import { createRequire } from 'module';
 
 const require = createRequire(import.meta.url);
 const sources = require('../lib/sources.json');
 
-const app = new Hono().basePath('/api');
-
-app.use('/*', cors());
-
 // Simple in-memory cache (survives warm Vercel invocations)
 let cache = { data: null, fetchedAt: null, key: null };
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
-app.get('/feeds', async (c) => {
-  const category = c.req.query('category') || null;
-  const source = c.req.query('source') || null;
+export default async function handler(req, res) {
+  // CORS headers
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    return res.status(204).end();
+  }
+
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  const category = url.searchParams.get('category') || null;
+  const source = url.searchParams.get('source') || null;
   const cacheKey = `${category || 'all'}-${source || 'all'}`;
 
   // Check cache
@@ -27,7 +30,7 @@ app.get('/feeds', async (c) => {
     cache.fetchedAt &&
     Date.now() - new Date(cache.fetchedAt).getTime() < CACHE_TTL
   ) {
-    return c.json({
+    return res.status(200).json({
       headlines: cache.data,
       fetchedAt: cache.fetchedAt,
       cached: true,
@@ -41,11 +44,9 @@ app.get('/feeds', async (c) => {
     // Update cache
     cache = { data: headlines, fetchedAt, key: cacheKey };
 
-    return c.json({ headlines, fetchedAt, cached: false });
+    return res.status(200).json({ headlines, fetchedAt, cached: false });
   } catch (err) {
     console.error('Feed fetch error:', err);
-    return c.json({ error: 'Failed to fetch feeds', headlines: [], fetchedAt: null }, 500);
+    return res.status(500).json({ error: 'Failed to fetch feeds', headlines: [], fetchedAt: null });
   }
-});
-
-export default handle(app);
+}

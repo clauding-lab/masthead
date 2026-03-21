@@ -1,46 +1,45 @@
-import { Hono } from 'hono';
-import { handle } from 'hono/vercel';
-import { cors } from 'hono/cors';
 import { extractArticle } from '../lib/extractor.js';
 
-const app = new Hono().basePath('/api');
+export default async function handler(req, res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
-app.use('/*', cors());
+  if (req.method === 'OPTIONS') {
+    return res.status(204).end();
+  }
 
-app.post('/save-url', async (c) => {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
   // Validate bearer token
-  const authHeader = c.req.header('Authorization');
+  const authHeader = req.headers['authorization'];
   const token = process.env.SAVE_URL_TOKEN;
 
   if (token) {
     if (!authHeader || authHeader !== `Bearer ${token}`) {
-      return c.json({ error: 'Unauthorized' }, 401);
+      return res.status(401).json({ error: 'Unauthorized' });
     }
   }
 
-  const body = await c.req.json();
-  const { url } = body;
+  const { url } = req.body || {};
 
   if (!url) {
-    return c.json({ error: 'URL is required' }, 400);
+    return res.status(400).json({ error: 'URL is required' });
   }
 
   try {
     new URL(url);
   } catch {
-    return c.json({ error: 'Invalid URL' }, 400);
+    return res.status(400).json({ error: 'Invalid URL' });
   }
 
   try {
     const article = await extractArticle(url);
-    return c.json({ success: true, article });
+    return res.status(200).json({ success: true, article });
   } catch (err) {
     console.error('Save-url extraction error:', err.message);
-    return c.json(
-      { success: false, error: 'Failed to extract article', message: err.message },
-      500
-    );
+    return res.status(500).json({ success: false, error: 'Failed to extract article', message: err.message });
   }
-});
-
-export default handle(app);
+}

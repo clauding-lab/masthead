@@ -2,7 +2,10 @@ import { Hono } from 'hono';
 import { handle } from 'hono/vercel';
 import { cors } from 'hono/cors';
 import { fetchAllFeeds } from '../lib/feedParser.js';
-import sources from '../lib/sources.json' with { type: 'json' };
+import { createRequire } from 'module';
+
+const require = createRequire(import.meta.url);
+const sources = require('../lib/sources.json');
 
 const app = new Hono().basePath('/api');
 

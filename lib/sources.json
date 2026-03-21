@@ -34,22 +34,6 @@
       "paywall": false
     },
     {
-      "id": "financial-express-bd",
-      "name": "Financial Express",
-      "shortName": "FE",
-      "url": "https://thefinancialexpress.com.bd",
-      "feedType": "scrape-js",
-      "category": "bangladesh",
-      "color": "#006B3F",
-      "paywall": false,
-      "selectors": {
-        "articleList": "article",
-        "title": "h3 a",
-        "link": "h3 a@href",
-        "thumbnail": "img@src"
-      }
-    },
-    {
       "id": "bbc-bangla",
       "name": "BBC Bangla",
       "shortName": "BBC-B",
@@ -70,22 +54,6 @@
       "category": "bangladesh",
       "color": "#ED1C24",
       "paywall": false
-    },
-    {
-      "id": "bonik-barta",
-      "name": "Bonik Barta",
-      "shortName": "BB-BD",
-      "url": "https://www.bonikbarta.com",
-      "feedType": "scrape-js",
-      "category": "bangladesh",
-      "color": "#1D4ED8",
-      "paywall": false,
-      "selectors": {
-        "articleList": "div.grow.group.relative",
-        "title": "h3 a",
-        "link": "h3 a@href",
-        "thumbnail": "img@src"
-      }
     },
     {
       "id": "ft",

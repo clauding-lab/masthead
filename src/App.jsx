@@ -1,5 +1,5 @@
 import { Routes, Route } from 'react-router-dom';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import TopBar from './components/TopBar';
 import BottomTabBar from './components/BottomTabBar';
 import CategoryTabs from './components/CategoryTabs';
@@ -40,7 +40,10 @@ export default function App() {
   const initAuth = useAuthStore((s) => s.initAuth);
   const isAuthInitialized = useAuthStore((s) => s.isInitialized);
   const user = useAuthStore((s) => s.user);
-  const onboarded = localStorage.getItem('masthead-onboarded') === 'true';
+  const [onboarded, setOnboarded] = useState(() => localStorage.getItem('masthead-onboarded') === 'true');
+
+  // Expose setter so OnboardingPage can trigger re-render without full reload
+  window.__mastheadCompleteOnboarding = () => setOnboarded(true);
 
   useEffect(() => {
     initFromStorage();

@@ -63,19 +63,29 @@ export default function OnboardingPage() {
       }
     }
 
-    // Force re-render by reloading — simplest way to exit onboarding
-    window.location.href = '/';
+    // Trigger App re-render to exit onboarding
+    if (window.__mastheadCompleteOnboarding) {
+      window.__mastheadCompleteOnboarding();
+    } else {
+      window.location.reload();
+    }
   };
 
+  const [signInError, setSignInError] = useState(null);
+
   const handleGoogleSignIn = async () => {
+    if (!supabase) {
+      setSignInError('Sign-in is not available yet. Tap "Skip for now" to continue.');
+      return;
+    }
     setIsSigningIn(true);
+    setSignInError(null);
     const { error } = await signInWithGoogle();
     if (error) {
       setIsSigningIn(false);
+      setSignInError(error.message || 'Sign-in failed. Try again or skip for now.');
       console.error('Sign-in failed:', error);
     }
-    // OAuth redirect will handle the rest — on return, authStore picks up session,
-    // then we detect onboarding not complete via URL param or auth callback
   };
 
   const handleSkipSignIn = () => {
@@ -214,6 +224,11 @@ export default function OnboardingPage() {
                 </>
               )}
             </button>
+            {signInError && (
+              <p className="font-ui text-xs text-center py-2" style={{ color: 'var(--accent)' }}>
+                {signInError}
+              </p>
+            )}
             <button
               onClick={handleSkipSignIn}
               className="w-full py-3 font-ui text-sm"

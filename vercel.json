@@ -6,6 +6,7 @@
   "functions": {
     "api/feeds.mjs": { "maxDuration": 30 },
     "api/extract.mjs": { "maxDuration": 30 },
-    "api/save-url.mjs": { "maxDuration": 15 }
+    "api/save-url.mjs": { "maxDuration": 15 },
+    "api/discover-rss.mjs": { "maxDuration": 15 }
   }
 }

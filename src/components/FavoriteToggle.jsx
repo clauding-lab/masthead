@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react';
 import { saveFavorite, removeFavorite, isFavorited } from '../lib/db';
+import { pushFavorite, removeFavoriteRemote } from '../lib/sync';
+import useAuthStore from '../stores/authStore';
 
 export default function FavoriteToggle({ article }) {
   const [favorited, setFavorited] = useState(false);
   const [saving, setSaving] = useState(false);
+  const user = useAuthStore((s) => s.user);
 
   useEffect(() => {
     if (article?.id) {
@@ -18,9 +21,11 @@ export default function FavoriteToggle({ article }) {
       if (favorited) {
         await removeFavorite(article.id);
         setFavorited(false);
+        if (user) removeFavoriteRemote(user.id, article.id);
       } else {
         await saveFavorite(article);
         setFavorited(true);
+        if (user) pushFavorite(user.id, article);
       }
     } catch (err) {
       console.error('Failed to toggle favorite:', err);

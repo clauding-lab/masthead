@@ -61,6 +61,42 @@ app.post('/api/extract', async (c) => {
   }
 });
 
+app.post('/api/feeds', async (c) => {
+  const body = await c.req.json();
+  const { sources: customSources, category } = body;
+  if (!customSources || !Array.isArray(customSources) || customSources.length === 0) {
+    return c.json({ error: 'sources array is required' }, 400);
+  }
+  try {
+    const headlines = await fetchAllFeeds(customSources, { category });
+    const fetchedAt = new Date().toISOString();
+    return c.json({ headlines, fetchedAt, cached: false });
+  } catch (err) {
+    console.error('Feed fetch error:', err);
+    return c.json({ error: 'Failed to fetch feeds', headlines: [], fetchedAt: null }, 500);
+  }
+});
+
+app.post('/api/discover-rss', async (c) => {
+  // Import handler dynamically for local dev
+  const { default: discoverHandler } = await import('./api/discover-rss.mjs');
+  // Adapt Hono context to Node-style req/res
+  const body = await c.req.json();
+  const result = await new Promise((resolve) => {
+    const fakeRes = {
+      _status: 200,
+      _headers: {},
+      setHeader(k, v) { this._headers[k] = v; },
+      status(code) { this._status = code; return this; },
+      json(data) { resolve({ status: this._status, data }); return this; },
+      end() { resolve({ status: this._status, data: null }); return this; },
+    };
+    const fakeReq = { method: 'POST', body, headers: {} };
+    discoverHandler(fakeReq, fakeRes);
+  });
+  return c.json(result.data, result.status);
+});
+
 app.post('/api/save-url', async (c) => {
   const authHeader = c.req.header('Authorization');
   const token = process.env.SAVE_URL_TOKEN;

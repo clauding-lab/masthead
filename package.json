@@ -13,6 +13,7 @@
   "dependencies": {
     "@hono/node-server": "^1.19.11",
     "@mozilla/readability": "^0.6.0",
+    "@supabase/supabase-js": "^2.100.1",
     "@tailwindcss/typography": "^0.5.19",
     "autoprefixer": "^10.4.27",
     "hono": "^4.12.8",

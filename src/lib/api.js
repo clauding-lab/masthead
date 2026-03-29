@@ -13,6 +13,26 @@ export async function fetchHeadlines({ category, source } = {}) {
   return res.json();
 }
 
+export async function fetchHeadlinesWithSources(sources, { category } = {}) {
+  const res = await fetch(`${API_BASE}/feeds`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sources, category }),
+  });
+  if (!res.ok) throw new Error(`Failed to fetch headlines: ${res.status}`);
+  return res.json();
+}
+
+export async function discoverRSS(url) {
+  const res = await fetch(`${API_BASE}/discover-rss`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url }),
+  });
+  if (!res.ok) throw new Error(`Discovery failed: ${res.status}`);
+  return res.json();
+}
+
 export async function extractArticle(articleUrl, sourceId) {
   const res = await fetch(`${API_BASE}/extract`, {
     method: 'POST',

@@ -12,17 +12,6 @@
       "paywall": false
     },
     {
-      "id": "dhaka-tribune",
-      "name": "Dhaka Tribune",
-      "shortName": "DT",
-      "url": "https://www.dhakatribune.com",
-      "feedUrl": "https://www.dhakatribune.com/rss.xml",
-      "feedType": "rss",
-      "category": "bangladesh",
-      "color": "#1A73E8",
-      "paywall": false
-    },
-    {
       "id": "business-standard-bd",
       "name": "The Business Standard",
       "shortName": "TBS",
@@ -44,17 +33,6 @@
       "color": "#BB1919",
       "paywall": false
     },
-{
-      "id": "reuters",
-      "name": "Reuters",
-      "shortName": "R",
-      "url": "https://www.reuters.com",
-      "feedUrl": "https://www.reuters.com/rssFeed/worldNews",
-      "feedType": "rss",
-      "category": "global-finance",
-      "color": "#FF8000",
-      "paywall": false
-    },
     {
       "id": "project-syndicate",
       "name": "Project Syndicate",
@@ -66,7 +44,7 @@
       "color": "#1B365D",
       "paywall": false
     },
-{
+    {
       "id": "al-jazeera",
       "name": "Al Jazeera",
       "shortName": "AJ",
@@ -135,7 +113,6 @@
   ],
   "categories": [
     { "id": "bangladesh", "label": "Bangladesh", "icon": "BD" },
-    { "id": "global-finance", "label": "Global Finance", "icon": "GF" },
     { "id": "macro", "label": "Macro", "icon": "MG" },
     { "id": "tech", "label": "Tech", "icon": "TC" }
   ]

@@ -4,6 +4,7 @@ import TopBar from './components/TopBar';
 import BottomTabBar from './components/BottomTabBar';
 import CategoryTabs from './components/CategoryTabs';
 import PageTransition from './components/PageTransition';
+import ErrorBoundary from './components/ErrorBoundary';
 import FeedPage from './pages/FeedPage';
 import ReaderPage from './pages/ReaderPage';
 import FavoritesPage from './pages/FavoritesPage';
@@ -45,7 +46,7 @@ export default function App() {
         <PageTransition>
           <Routes>
             <Route path="/" element={<FeedLayout />} />
-            <Route path="/article/:id" element={<ReaderPage />} />
+            <Route path="/article/:id" element={<ErrorBoundary><ReaderPage /></ErrorBoundary>} />
             <Route path="/favorites" element={<FavoritesPage />} />
             <Route path="/history" element={<HistoryPage />} />
             <Route path="/settings" element={<SettingsPage />} />

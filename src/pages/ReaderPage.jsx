@@ -205,11 +205,32 @@ export default function ReaderPage() {
           )}
 
           {/* Article body */}
-          <div
-            className="reader-body"
-            style={{ fontSize: `${fontSize}px` }}
-            dangerouslySetInnerHTML={{ __html: article.content }}
-          />
+          {article.content ? (
+            <div
+              className="reader-body"
+              style={{ fontSize: `${fontSize}px` }}
+              dangerouslySetInnerHTML={{ __html: article.content }}
+            />
+          ) : article.textContent ? (
+            <div className="reader-body" style={{ fontSize: `${fontSize}px` }}>
+              {article.textContent.split(/\n\n+/).filter((p) => p.trim()).map((p, i) => (
+                <p key={i}>{p.trim()}</p>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8" style={{ color: 'var(--text-tertiary)' }}>
+              <p className="font-ui text-sm">Could not extract article content.</p>
+              <a
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-block mt-3 px-4 py-2 rounded-lg font-ui text-sm"
+                style={{ backgroundColor: 'var(--accent)', color: '#fff' }}
+              >
+                Read on original site
+              </a>
+            </div>
+          )}
         </article>
       )}
     </div>

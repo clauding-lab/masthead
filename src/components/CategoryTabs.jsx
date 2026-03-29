@@ -1,10 +1,8 @@
+import sourcesData from '../../lib/sources.json';
+
 const categories = [
   { id: null, label: 'All' },
-  { id: 'bangladesh', label: 'Bangladesh' },
-  { id: 'global-finance', label: 'Global Finance' },
-  { id: 'macro', label: 'Macro' },
-  { id: 'tech', label: 'Tech' },
-  { id: 'markets', label: 'Markets' },
+  ...sourcesData.categories.map((c) => ({ id: c.id, label: c.label })),
 ];
 
 export default function CategoryTabs({ selected, onSelect }) {

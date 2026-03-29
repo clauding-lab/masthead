@@ -23,10 +23,9 @@ function applyTheme(theme) {
 function loadSelectedSourceIds() {
   try {
     const stored = localStorage.getItem('masthead-selectedSources');
-    if (stored) return new Set(JSON.parse(stored));
+    if (stored) return JSON.parse(stored);
   } catch { /* ignore */ }
-  // Default: all built-in sources selected
-  return new Set(sourcesData.sources.map((s) => s.id));
+  return sourcesData.sources.map((s) => s.id);
 }
 
 function loadCustomSources() {
@@ -40,7 +39,7 @@ function loadCustomSources() {
 const useSettingsStore = create((set, get) => ({
   theme: getInitialTheme(),
   fontSize: 18,
-  selectedSourceIds: loadSelectedSourceIds(),
+  selectedSourceIds: loadSelectedSourceIds(), // array of strings
   customSources: loadCustomSources(),
 
   setTheme: (theme) => {
@@ -56,14 +55,15 @@ const useSettingsStore = create((set, get) => ({
 
   toggleSource: (sourceId) => {
     set((state) => {
-      const next = new Set(state.selectedSourceIds);
-      if (next.has(sourceId)) {
-        if (next.size <= 1) return state; // must keep at least 1
-        next.delete(sourceId);
+      const idx = state.selectedSourceIds.indexOf(sourceId);
+      let next;
+      if (idx >= 0) {
+        if (state.selectedSourceIds.length <= 1) return state; // must keep at least 1
+        next = state.selectedSourceIds.filter((id) => id !== sourceId);
       } else {
-        next.add(sourceId);
+        next = [...state.selectedSourceIds, sourceId];
       }
-      localStorage.setItem('masthead-selectedSources', JSON.stringify([...next]));
+      localStorage.setItem('masthead-selectedSources', JSON.stringify(next));
       return { selectedSourceIds: next };
     });
   },
@@ -73,10 +73,9 @@ const useSettingsStore = create((set, get) => ({
     const newSource = { ...source, id };
     set((state) => {
       const customSources = [...state.customSources, newSource];
-      const selectedSourceIds = new Set(state.selectedSourceIds);
-      selectedSourceIds.add(id);
+      const selectedSourceIds = [...state.selectedSourceIds, id];
       localStorage.setItem('masthead-customSources', JSON.stringify(customSources));
-      localStorage.setItem('masthead-selectedSources', JSON.stringify([...selectedSourceIds]));
+      localStorage.setItem('masthead-selectedSources', JSON.stringify(selectedSourceIds));
       return { customSources, selectedSourceIds };
     });
     return id;
@@ -85,23 +84,21 @@ const useSettingsStore = create((set, get) => ({
   removeCustomSource: (sourceId) => {
     set((state) => {
       const customSources = state.customSources.filter((s) => s.id !== sourceId);
-      const selectedSourceIds = new Set(state.selectedSourceIds);
-      selectedSourceIds.delete(sourceId);
+      const selectedSourceIds = state.selectedSourceIds.filter((id) => id !== sourceId);
       localStorage.setItem('masthead-customSources', JSON.stringify(customSources));
-      localStorage.setItem('masthead-selectedSources', JSON.stringify([...selectedSourceIds]));
+      localStorage.setItem('masthead-selectedSources', JSON.stringify(selectedSourceIds));
       return { customSources, selectedSourceIds };
     });
   },
 
-  // Returns the full source objects the user has enabled
   getEffectiveSources: () => {
     const { selectedSourceIds, customSources } = get();
-    const defaults = sourcesData.sources.filter((s) => selectedSourceIds.has(s.id));
-    const custom = customSources.filter((s) => selectedSourceIds.has(s.id));
+    const idSet = new Set(selectedSourceIds);
+    const defaults = sourcesData.sources.filter((s) => idSet.has(s.id));
+    const custom = customSources.filter((s) => idSet.has(s.id));
     return [...defaults, ...custom];
   },
 
-  // Returns ALL sources (enabled + disabled) for the settings UI
   getAllSources: () => {
     const { customSources } = get();
     return [...sourcesData.sources, ...customSources];

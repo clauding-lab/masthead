@@ -142,7 +142,7 @@ export default function SettingsPage() {
               <SourceToggleRow
                 key={src.id}
                 source={src}
-                isEnabled={selectedSourceIds.has(src.id)}
+                isEnabled={selectedSourceIds.includes(src.id)}
                 onToggle={toggleSource}
                 onRemove={isCustom ? removeCustomSource : undefined}
               />

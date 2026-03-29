@@ -42,10 +42,9 @@ export default function App() {
   const user = useAuthStore((s) => s.user);
   const [onboarded, setOnboarded] = useState(() => localStorage.getItem('masthead-onboarded') === 'true');
 
-  // Expose setter so OnboardingPage can trigger re-render without full reload
-  window.__mastheadCompleteOnboarding = () => setOnboarded(true);
-
   useEffect(() => {
+    // Expose setter so OnboardingPage can trigger re-render without full reload
+    window.__mastheadCompleteOnboarding = () => setOnboarded(true);
     initFromStorage();
     initAuth();
   }, []);

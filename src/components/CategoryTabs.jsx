@@ -1,20 +1,28 @@
+import { useMemo } from 'react';
 import useSettingsStore from '../stores/settingsStore';
+import sourcesData from '../../lib/sources.json';
 
 export default function CategoryTabs({ selected, onSelect }) {
-  const effectiveSources = useSettingsStore((s) => s.getEffectiveSources());
+  const selectedSourceIds = useSettingsStore((s) => s.selectedSourceIds);
+  const customSources = useSettingsStore((s) => s.customSources);
 
-  // Derive unique categories from active sources
-  const seen = new Set();
-  const dynamicCategories = [];
-  for (const src of effectiveSources) {
-    const cat = src.category;
-    if (cat && !seen.has(cat)) {
-      seen.add(cat);
-      dynamicCategories.push({ id: cat, label: cat.charAt(0).toUpperCase() + cat.slice(1) });
+  const categories = useMemo(() => {
+    // Combine default + custom sources, filter to enabled ones
+    const allSources = [...sourcesData.sources, ...customSources];
+    const idSet = new Set(selectedSourceIds);
+    const active = allSources.filter((s) => idSet.has(s.id));
+
+    const seen = new Set();
+    const cats = [];
+    for (const src of active) {
+      const cat = src.category;
+      if (cat && !seen.has(cat)) {
+        seen.add(cat);
+        cats.push({ id: cat, label: cat.charAt(0).toUpperCase() + cat.slice(1) });
+      }
     }
-  }
-
-  const categories = [{ id: null, label: 'All' }, ...dynamicCategories];
+    return [{ id: null, label: 'All' }, ...cats];
+  }, [selectedSourceIds, customSources]);
 
   return (
     <div className="px-4 py-2 overflow-x-auto no-scrollbar" style={{ borderBottom: '1px solid var(--divider)' }}>

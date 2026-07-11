@@ -30,10 +30,15 @@ app.get('/api/feeds', async (c) => {
   }
 
   try {
-    const headlines = await fetchAllFeeds(sources.sources, { category, source });
+    const { headlines, stats } = await fetchAllFeeds(sources.sources, { category, source });
+    if (stats.total > 0 && stats.succeeded === 0) {
+      return c.json({ error: 'Feeds temporarily unavailable', headlines: [], feedStats: stats }, 503);
+    }
     const fetchedAt = new Date().toISOString();
-    cache = { data: headlines, fetchedAt, key: cacheKey };
-    return c.json({ headlines, fetchedAt, cached: false });
+    if (stats.succeeded > 0) {
+      cache = { data: headlines, fetchedAt, key: cacheKey };
+    }
+    return c.json({ headlines, fetchedAt, cached: false, feedStats: stats });
   } catch (err) {
     console.error('Feed fetch error:', err);
     return c.json({ error: 'Failed to fetch feeds', headlines: [], fetchedAt: null }, 500);
@@ -68,9 +73,12 @@ app.post('/api/feeds', async (c) => {
     return c.json({ error: 'sources array is required' }, 400);
   }
   try {
-    const headlines = await fetchAllFeeds(customSources, { category });
+    const { headlines, stats } = await fetchAllFeeds(customSources, { category });
+    if (stats.total > 0 && stats.succeeded === 0) {
+      return c.json({ error: 'Feeds temporarily unavailable', headlines: [], feedStats: stats }, 503);
+    }
     const fetchedAt = new Date().toISOString();
-    return c.json({ headlines, fetchedAt, cached: false });
+    return c.json({ headlines, fetchedAt, cached: false, feedStats: stats });
   } catch (err) {
     console.error('Feed fetch error:', err);
     return c.json({ error: 'Failed to fetch feeds', headlines: [], fetchedAt: null }, 500);

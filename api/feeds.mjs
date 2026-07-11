@@ -36,8 +36,11 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Too many sources (max 30)' });
     }
     try {
-      const headlines = await fetchAllFeeds(customSources, { category });
-      return res.status(200).json({ headlines, fetchedAt: new Date().toISOString(), cached: false });
+      const { headlines, stats } = await fetchAllFeeds(customSources, { category });
+      if (stats.total > 0 && stats.succeeded === 0) {
+        return res.status(503).json({ error: 'Feeds temporarily unavailable', headlines: [], feedStats: stats });
+      }
+      return res.status(200).json({ headlines, fetchedAt: new Date().toISOString(), cached: false, feedStats: stats });
     } catch (err) {
       console.error('Feed fetch error:', err);
       return res.status(500).json({ error: 'Failed to fetch feeds', headlines: [], fetchedAt: null });
@@ -65,10 +68,15 @@ export default async function handler(req, res) {
   }
 
   try {
-    const headlines = await fetchAllFeeds(sources.sources, { category, source });
+    const { headlines, stats } = await fetchAllFeeds(sources.sources, { category, source });
+    if (stats.total > 0 && stats.succeeded === 0) {
+      return res.status(503).json({ error: 'Feeds temporarily unavailable', headlines: [], feedStats: stats });
+    }
     const fetchedAt = new Date().toISOString();
-    cache = { data: headlines, fetchedAt, key: cacheKey };
-    return res.status(200).json({ headlines, fetchedAt, cached: false });
+    if (stats.succeeded > 0) {
+      cache = { data: headlines, fetchedAt, key: cacheKey };
+    }
+    return res.status(200).json({ headlines, fetchedAt, cached: false, feedStats: stats });
   } catch (err) {
     console.error('Feed fetch error:', err);
     return res.status(500).json({ error: 'Failed to fetch feeds', headlines: [], fetchedAt: null });

@@ -15,7 +15,7 @@
 - **Pure presentation.** No edits to `src/stores/*` logic, `src/lib/*`, `api/*`, `server.js`, `lib/*` (server), `supabase/*`, or IndexedDB schema. (Restyling a component's markup is fine; changing its data/handlers is not.)
 - **Keep the theme mechanism.** Tailwind `darkMode: 'class'` + `.dark` on `<html>`, toggled by `settingsStore.setTheme`/`applyTheme`. Do **not** add `data-theme` or a new theme hook. Refine token *values* only.
 - **Keep the styling pattern.** Tailwind utilities for layout + inline `style={{ color: 'var(--token)' }}` for themed color + Tailwind font utilities. Route color/space/type through the refined tokens and new primitives.
-- **Accent = newspaper red** (`--accent` `#C2452D` light / `#E8634A` dark) unless the user selects ink-blue. It is one token pair; do not hardcode the hue anywhere else.
+- **Accent = ink-blue** (`--accent` `#33568C` light / `#8DB0E4` dark; `--accent-soft` `#EAF0F8` / `#1E2A3B`) — chosen 2026-07-11, replacing the prior newspaper red. It is one token pair; do not hardcode the hue anywhere else.
 - **Both themes AA**; `prefers-reduced-motion` honored; visible `:focus-visible` on every interactive element.
 - **Unit suite stays green:** `npm test` = 68/68. Any red is a real regression (2A changes no logic).
 - **No new runtime/build dependency without sign-off** (VISION). The only planned dep additions are the self-hosted font packages in Task 2 — gated in Prerequisites.
@@ -26,7 +26,7 @@
 
 These are the VISION sign-off items bundled into "start 2A":
 
-1. **Accent hue** — newspaper red (recommended, default) or ink-blue. One-token change; pick before Task 1.
+1. **Accent hue** — ✅ **decided: ink-blue** (`#33568C` / `#8DB0E4`), 2026-07-11.
 2. **Font pairing swap** — replace Playfair Display / DM Sans / Source Serif 4 / JetBrains Mono with **Newsreader (serif) + Inter (UI)**, vendored via `@fontsource/newsreader` + `@fontsource/inter` (devDeps — dependency addition needs sign-off). Fallback: hand-vendor subset `woff2` under `public/fonts/` (no dep).
 3. **General visual direction** — the mockup (feed + reader, "Quiet Editorial").
 
@@ -90,8 +90,8 @@ Render-level component tests are intentionally **not** added (would require `@te
   --text-primary: #201D18;
   --text-secondary: #635C51;
   --text-tertiary: #938B7E;
-  --accent: #C2452D;        /* newspaper red — or #33568C if ink-blue chosen */
-  --accent-soft: #FFF0ED;   /* or #EAF0F8 if ink-blue */
+  --accent: #33568C;        /* ink-blue (chosen 2026-07-11) */
+  --accent-soft: #EAF0F8;
   --border: #E7E1D6;
   --divider: #EFEAE1;
   /* --font-* set in Task 2; keep --error/--success/--paywall-badge as-is */
@@ -106,8 +106,8 @@ Render-level component tests are intentionally **not** added (would require `@te
   --text-primary: #EDE8DF;
   --text-secondary: #A69E90;
   --text-tertiary: #726B5F;
-  --accent: #E8634A;        /* or #8DB0E4 if ink-blue */
-  --accent-soft: #2A1A16;   /* or #1E2A3B if ink-blue */
+  --accent: #8DB0E4;        /* ink-blue dark (chosen 2026-07-11) */
+  --accent-soft: #1E2A3B;
   --border: #2E2A25;
   --divider: #272320;
 ```

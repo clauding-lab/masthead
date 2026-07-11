@@ -61,8 +61,8 @@ Paper over screen; one restrained accent; two typefaces doing distinct jobs. Bot
 | `--ink-2` | `#635C51` | `#A69E90` | secondary text |
 | `--ink-3` | `#938B7E` | `#726B5F` | muted / meta |
 | `--hairline` | `#E7E1D6` | `#2E2A25` | dividers / borders |
-| `--accent` | `#C2452D` | `#E8634A` | links, active state — **newspaper red, Masthead's current identity, kept.** Ink-blue (`#33568C` / `#8DB0E4`) is the documented alternative shown in the mockup; final hue is the user's call. |
-| `--accent-soft` | `#FFF0ED` | `#2A1A16` | accent-tint backgrounds |
+| `--accent` | `#33568C` | `#8DB0E4` | links, active state — **ink-blue (chosen 2026-07-11).** Replaces the prior newspaper red (`#C2452D` / `#E8634A`) for a cooler, more app-like feel. |
+| `--accent-soft` | `#EAF0F8` | `#1E2A3B` | accent-tint backgrounds |
 
 Subtle per-source scannability dots (muted brand-adjacent hues) are decorative identity, **kept distinct from `--accent`**, which is reserved for interactive/active state. Semantic colors (error/success) are separate again and do not use the accent hue.
 

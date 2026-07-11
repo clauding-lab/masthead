@@ -157,6 +157,17 @@ body {
   outline-offset: 2px;
 }
 
+/* Designed focus ring for every interactive element (matches .mh-btn) */
+a:focus-visible,
+button:focus-visible,
+[role="button"]:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .mh-btn {
     transition: none;

@@ -106,7 +106,7 @@ export default function ReaderPage() {
     updateProgress();
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
-  }, [article]);
+  }, [article, isLoading]);
 
   if (!url && !fromFavorites) {
     return (
@@ -155,6 +155,16 @@ export default function ReaderPage() {
               aria-label="Share article"
             >
               <Icon name="share" />
+            </Button>
+            <Button
+              as="a"
+              variant="icon"
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Open in browser"
+            >
+              <Icon name="external" />
             </Button>
           </div>
         </div>

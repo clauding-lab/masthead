@@ -49,6 +49,14 @@ const paths = {
   ),
   // Mirror of `back` (chevron-right) — no existing generic disclosure glyph in the codebase yet
   chevron: <path d="m9 18 6-6-6-6" />,
+  // ReaderPage.jsx open-in-browser action
+  external: (
+    <>
+      <path d="M15 3h6v6" />
+      <path d="M10 14 21 3" />
+      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+    </>
+  ),
 };
 
 export default function Icon({ name, size = 20, className = '', style = {}, ...rest }) {

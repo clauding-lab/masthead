@@ -20,6 +20,7 @@
     "@upstash/ratelimit": "^2.0.8",
     "@upstash/redis": "^1.38.0",
     "autoprefixer": "^10.4.27",
+    "dompurify": "^3.4.11",
     "hono": "^4.12.8",
     "idb": "^8.0.3",
     "linkedom": "^0.18.12",

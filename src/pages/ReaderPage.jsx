@@ -8,6 +8,7 @@ import EmptyState from '../components/EmptyState';
 import { addToHistory, getFavorite } from '../lib/db';
 import { formatDate, formatReadingTime } from '../lib/utils';
 import useSwipeBack from '../hooks/useSwipeBack';
+import { sanitizeArticleHtml } from '../lib/sanitize';
 import '../styles/reader.css';
 
 function ReaderSkeleton() {
@@ -209,7 +210,7 @@ export default function ReaderPage() {
             <div
               className="reader-body"
               style={{ fontSize: `${fontSize}px` }}
-              dangerouslySetInnerHTML={{ __html: article.content }}
+              dangerouslySetInnerHTML={{ __html: sanitizeArticleHtml(article.content) }}
             />
           ) : article.textContent ? (
             <div className="reader-body" style={{ fontSize: `${fontSize}px` }}>

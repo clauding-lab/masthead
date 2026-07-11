@@ -1,6 +1,7 @@
 import { extractArticle } from '../lib/extractor.js';
 import { assertPublicUrl } from '../lib/urlGuard.js';
-import { applyCors } from '../lib/httpGuards.js';
+import { applyCors, clientIp } from '../lib/httpGuards.js';
+import { checkRateLimit } from '../lib/rateLimit.js';
 
 export default async function handler(req, res) {
   applyCors(req, res, 'POST, OPTIONS');
@@ -12,6 +13,9 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
+
+  const { allowed } = await checkRateLimit(`save-url:${clientIp(req)}`, { limit: 20, windowSec: 60 });
+  if (!allowed) return res.status(429).json({ error: 'Too many requests' });
 
   // Validate bearer token
   const authHeader = req.headers['authorization'];

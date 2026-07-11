@@ -1,7 +1,8 @@
 import { parseHTML } from 'linkedom';
 import Parser from 'rss-parser';
 import { safeFetch, assertPublicUrl } from '../lib/urlGuard.js';
-import { applyCors } from '../lib/httpGuards.js';
+import { applyCors, clientIp } from '../lib/httpGuards.js';
+import { checkRateLimit } from '../lib/rateLimit.js';
 
 const parser = new Parser();
 
@@ -47,6 +48,9 @@ export default async function handler(req, res) {
 
   if (req.method === 'OPTIONS') return res.status(204).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+
+  const { allowed } = await checkRateLimit(`discover:${clientIp(req)}`, { limit: 20, windowSec: 60 });
+  if (!allowed) return res.status(429).json({ error: 'Too many requests' });
 
   let body;
   try {

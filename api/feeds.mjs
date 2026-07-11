@@ -1,6 +1,7 @@
 import { fetchAllFeeds } from '../lib/feedParser.js';
 import { createRequire } from 'module';
-import { applyCors } from '../lib/httpGuards.js';
+import { applyCors, clientIp } from '../lib/httpGuards.js';
+import { checkRateLimit } from '../lib/rateLimit.js';
 
 const require = createRequire(import.meta.url);
 const sources = require('../lib/sources.json');
@@ -15,6 +16,9 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') {
     return res.status(204).end();
   }
+
+  const { allowed } = await checkRateLimit(`feeds:${clientIp(req)}`, { limit: 60, windowSec: 60 });
+  if (!allowed) return res.status(429).json({ error: 'Too many requests' });
 
   // POST: custom source list from user
   if (req.method === 'POST') {

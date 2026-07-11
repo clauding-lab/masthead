@@ -17,6 +17,8 @@
     "@mozilla/readability": "^0.6.0",
     "@supabase/supabase-js": "^2.100.1",
     "@tailwindcss/typography": "^0.5.19",
+    "@upstash/ratelimit": "^2.0.8",
+    "@upstash/redis": "^1.38.0",
     "autoprefixer": "^10.4.27",
     "hono": "^4.12.8",
     "idb": "^8.0.3",

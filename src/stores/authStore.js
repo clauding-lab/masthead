@@ -47,8 +47,15 @@ const useAuthStore = create((set, get) => ({
 
   signOut: async () => {
     if (!supabase) return;
-    await supabase.auth.signOut();
-    set({ user: null, session: null });
+    try {
+      await supabase.auth.signOut();
+    } finally {
+      const { clearUserData } = await import('../lib/localData');
+      await clearUserData();
+      set({ user: null, session: null });
+      const useSettingsStore = (await import('./settingsStore')).default;
+      useSettingsStore.getState().initFromStorage();
+    }
   },
 }));
 

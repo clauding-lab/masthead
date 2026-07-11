@@ -121,6 +121,13 @@ export async function removePendingUrl(url) {
   await db.delete('pending', url);
 }
 
+// === Clear all local data (sign-out) ===
+
+export async function clearAllLocalData() {
+  const db = await getDB();
+  await Promise.all([db.clear('articles'), db.clear('history'), db.clear('pending')]);
+}
+
 // === Storage info ===
 
 export async function getStorageEstimate() {

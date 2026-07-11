@@ -213,7 +213,7 @@ git commit -m "feat(2a): self-host Inter + Newsreader pairing, drop Google Fonts
   - `<Surface as="div" raised className style>...` — token-styled container (bg-card, border, radius, optional shadow).
   - `<Button variant="primary|ghost|icon" as onClick aria-label>...` — focus-visible ring, active scale, token colors.
   - `<Icon name="search|settings|back|share|bookmark|refresh|chevron" size={20} />` — single source for inline SVGs used by chrome/reader.
-  - `<Tag color sourceName short>` — the source kicker (dot + uppercase label), replaces ad-hoc source rows.
+  - `<Tag color sourceName meta>` — the source kicker (dot + uppercase label + optional `meta` text), replaces ad-hoc source rows.
 
 - [ ] **Step 1: Create `Surface.jsx`**
 

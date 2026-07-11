@@ -5,7 +5,7 @@ const PRESERVED_KEYS = new Set(['masthead-theme', 'masthead-fontSize', 'masthead
 export async function clearUserData() {
   await clearAllLocalData();
   for (const key of Object.keys(localStorage)) {
-    if (key.startsWith('masthead-') && !PRESERVED_KEYS.has(key)) {
+    if ((key.startsWith('masthead-') && !PRESERVED_KEYS.has(key)) || key.startsWith('sb-')) {
       localStorage.removeItem(key);
     }
   }

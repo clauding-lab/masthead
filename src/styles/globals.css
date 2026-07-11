@@ -18,10 +18,11 @@
   --error: #E85D4A;
   --success: #3FB68B;
 
-  --font-display: 'Playfair Display', Georgia, serif;
-  --font-body: 'Source Serif 4', 'Charter', serif;
-  --font-ui: 'DM Sans', system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
+  --font-ui: 'Inter', system-ui, sans-serif;
+  --font-serif: 'Newsreader', 'Iowan Old Style', 'Charter', Georgia, serif;
+  --font-display: var(--font-serif);
+  --font-body: var(--font-serif);
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
 :root.dark {

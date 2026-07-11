@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { getAllFavorites, removeFavorite } from '../lib/db';
 import SavedArticleCard from '../components/SavedArticleCard';
 import EmptyState from '../components/EmptyState';
+import Surface from '../components/ui/Surface';
+import Icon from '../components/ui/Icon';
 
 export default function FavoritesPage() {
   const [favorites, setFavorites] = useState([]);
@@ -73,25 +75,8 @@ export default function FavoritesPage() {
       {/* Search bar */}
       {favorites.length > 1 && (
         <div className="px-4 py-2" style={{ backgroundColor: 'var(--bg-surface)' }}>
-          <div
-            className="flex items-center gap-2 px-3 py-2 rounded-lg"
-            style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)' }}
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              style={{ color: 'var(--text-tertiary)', flexShrink: 0 }}
-            >
-              <circle cx="11" cy="11" r="8" />
-              <path d="m21 21-4.3-4.3" />
-            </svg>
+          <Surface className="flex items-center gap-2 px-3 py-2">
+            <Icon name="search" size={16} style={{ color: 'var(--text-tertiary)', flexShrink: 0 }} />
             <input
               type="text"
               placeholder="Search saved articles..."
@@ -106,13 +91,10 @@ export default function FavoritesPage() {
                 className="p-0.5"
                 style={{ color: 'var(--text-tertiary)' }}
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M18 6 6 18" />
-                  <path d="m6 6 12 12" />
-                </svg>
+                <Icon name="close" size={14} />
               </button>
             )}
-          </div>
+          </Surface>
         </div>
       )}
 

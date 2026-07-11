@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
-import SourceBadge from './SourceBadge';
+import Tag from './ui/Tag';
+import Icon from './ui/Icon';
 import { timeAgo } from '../lib/utils';
 
 export default function SavedArticleCard({ article, onRemove }) {
@@ -23,7 +24,7 @@ export default function SavedArticleCard({ article, onRemove }) {
       >
         <div className="flex items-center gap-2 mb-1.5">
           {article.sourceShortName && (
-            <SourceBadge shortName={article.sourceShortName} color={article.sourceColor} />
+            <Tag color={article.sourceColor} sourceName={article.sourceShortName} />
           )}
           <span
             className="inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded"
@@ -67,10 +68,7 @@ export default function SavedArticleCard({ article, onRemove }) {
           style={{ color: 'var(--text-tertiary)' }}
           aria-label="Remove from favorites"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M18 6 6 18" />
-            <path d="m6 6 12 12" />
-          </svg>
+          <Icon name="close" size={16} />
         </button>
       )}
     </div>

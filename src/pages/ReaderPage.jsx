@@ -3,9 +3,11 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import useArticleStore from '../stores/articleStore';
 import useSettingsStore from '../stores/settingsStore';
 import useAuthStore from '../stores/authStore';
-import SourceBadge from '../components/SourceBadge';
 import FavoriteToggle from '../components/FavoriteToggle';
 import EmptyState from '../components/EmptyState';
+import Button from '../components/ui/Button';
+import Icon from '../components/ui/Icon';
+import Tag from '../components/ui/Tag';
 import { addToHistory, getFavorite } from '../lib/db';
 import { pushHistoryEntry } from '../lib/sync';
 import { formatDate, formatReadingTime } from '../lib/utils';
@@ -40,6 +42,7 @@ export default function ReaderPage() {
   const fontSize = useSettingsStore((s) => s.fontSize);
   const historyRecorded = useRef(false);
   const pageRef = useRef(null);
+  const progressBarRef = useRef(null);
   useSwipeBack(pageRef);
 
   const { url, sourceId, sourceName, sourceShortName, sourceColor, fromFavorites } =
@@ -83,6 +86,28 @@ export default function ReaderPage() {
     }
   }, [article]);
 
+  // Reading-progress bar — compositor-only (transform), reads scroll position only
+  useEffect(() => {
+    const bar = progressBarRef.current;
+    if (!article || !bar) return;
+    let ticking = false;
+    const updateProgress = () => {
+      const scrollable = document.documentElement.scrollHeight - window.innerHeight;
+      const progress = scrollable > 0 ? Math.min(Math.max(window.scrollY / scrollable, 0), 1) : 0;
+      bar.style.transform = `scaleX(${progress})`;
+      ticking = false;
+    };
+    const onScroll = () => {
+      if (!ticking) {
+        ticking = true;
+        requestAnimationFrame(updateProgress);
+      }
+    };
+    updateProgress();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, [article, isLoading]);
+
   if (!url && !fromFavorites) {
     return (
       <EmptyState
@@ -98,56 +123,56 @@ export default function ReaderPage() {
     <div ref={pageRef} className="min-h-screen" style={{ backgroundColor: 'var(--bg-primary)' }}>
       {/* Reader top bar */}
       <header
-        className="sticky top-0 z-40 flex items-center justify-between px-4 py-3"
+        className="sticky top-0 z-40 safe-top"
         style={{ backgroundColor: 'var(--bg-primary)', borderBottom: '1px solid var(--divider)' }}
       >
-        <button
-          onClick={() => navigate(-1)}
-          className="flex items-center gap-1 font-ui text-sm"
-          style={{ color: 'var(--text-secondary)' }}
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="m15 18-6-6 6-6" />
-          </svg>
-          Back
-        </button>
-        <div className="flex items-center gap-1">
-          <FavoriteToggle article={article ? { ...article, sourceId, sourceName, sourceShortName, sourceColor } : null} />
-          {/* Share button */}
-          <button
-            onClick={() => {
-              if (navigator.share) {
-                navigator.share({ title: article?.title, url });
-              } else {
-                navigator.clipboard.writeText(url);
-              }
-            }}
-            className="p-2"
-            style={{ color: 'var(--text-secondary)' }}
-            aria-label="Share article"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
-              <polyline points="16 6 12 2 8 6" />
-              <line x1="12" y1="2" x2="12" y2="15" />
-            </svg>
-          </button>
-          {/* Open external */}
-          <a
-            href={url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="p-2"
-            style={{ color: 'var(--text-secondary)' }}
-            aria-label="Open in browser"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-              <polyline points="15 3 21 3 21 9" />
-              <line x1="10" y1="14" x2="21" y2="3" />
-            </svg>
-          </a>
+        <div className="flex items-center justify-between gap-2 px-2 py-2">
+          <div className="flex items-center gap-1 min-w-0">
+            <Button variant="icon" onClick={() => navigate(-1)} aria-label="Back">
+              <Icon name="back" />
+            </Button>
+            {(sourceShortName || sourceName || article?.sourceName) && (
+              <div className="truncate">
+                <Tag
+                  color={sourceColor}
+                  sourceName={sourceShortName || sourceName || article?.sourceName}
+                />
+              </div>
+            )}
+          </div>
+          <div className="flex items-center gap-0.5 flex-shrink-0">
+            <FavoriteToggle article={article ? { ...article, sourceId, sourceName, sourceShortName, sourceColor } : null} />
+            {/* Share button */}
+            <Button
+              variant="icon"
+              onClick={() => {
+                if (navigator.share) {
+                  navigator.share({ title: article?.title, url });
+                } else {
+                  navigator.clipboard.writeText(url);
+                }
+              }}
+              aria-label="Share article"
+            >
+              <Icon name="share" />
+            </Button>
+            <Button
+              as="a"
+              variant="icon"
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Open in browser"
+            >
+              <Icon name="external" />
+            </Button>
+          </div>
         </div>
+        {article && !isLoading && (
+          <div className="reader-progress-track">
+            <div ref={progressBarRef} className="reader-progress-bar" />
+          </div>
+        )}
       </header>
 
       {isLoading && <ReaderSkeleton />}
@@ -165,16 +190,6 @@ export default function ReaderPage() {
         <article className="max-w-[680px] mx-auto px-5 py-6">
           {/* Article header */}
           <div className="mb-6">
-            <div className="flex items-center gap-2 mb-3">
-              {sourceShortName && (
-                <SourceBadge shortName={sourceShortName} color={sourceColor} />
-              )}
-              {(sourceName || article.sourceName) && (
-                <span className="font-ui text-xs" style={{ color: 'var(--text-secondary)' }}>
-                  {sourceName || article.sourceName}
-                </span>
-              )}
-            </div>
             <h1
               className="font-display text-2xl font-bold leading-tight mb-3"
               style={{ color: 'var(--text-primary)' }}
@@ -231,7 +246,7 @@ export default function ReaderPage() {
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-block mt-3 px-4 py-2 rounded-lg font-ui text-sm"
-                style={{ backgroundColor: 'var(--accent)', color: '#fff' }}
+                style={{ backgroundColor: 'var(--accent)', color: 'var(--accent-contrast)' }}
               >
                 Read on original site
               </a>

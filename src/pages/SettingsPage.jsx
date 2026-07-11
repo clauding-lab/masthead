@@ -4,6 +4,7 @@ import useAuthStore from '../stores/authStore';
 import { getStorageEstimate } from '../lib/db';
 import SourceToggleRow from '../components/SourceToggleRow';
 import AddSourceModal from '../components/AddSourceModal';
+import Icon from '../components/ui/Icon';
 import sourcesData from '../../lib/sources.json';
 
 const FONT_SIZES = [
@@ -25,7 +26,7 @@ function ThemeOption({ value, label, icon, current, onSelect }) {
         border: `2px solid ${active ? 'var(--accent)' : 'transparent'}`,
       }}
     >
-      <span className="text-xl">{icon}</span>
+      <Icon name={icon} size={20} style={{ color: active ? 'var(--accent)' : 'var(--text-secondary)' }} />
       <span
         className="font-ui text-xs font-medium"
         style={{ color: active ? 'var(--accent)' : 'var(--text-secondary)' }}

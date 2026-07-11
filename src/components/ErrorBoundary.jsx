@@ -33,7 +33,7 @@ export default class ErrorBoundary extends Component {
               window.history.back();
             }}
             className="px-5 py-2.5 rounded-lg font-ui text-sm font-medium"
-            style={{ backgroundColor: 'var(--accent)', color: '#fff' }}
+            style={{ backgroundColor: 'var(--accent)', color: 'var(--accent-contrast)' }}
           >
             Go Back
           </button>

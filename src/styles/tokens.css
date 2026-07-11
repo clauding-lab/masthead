@@ -1,0 +1,32 @@
+:root {
+  /* Type scale — clamp()-based, fixed */
+  --step--1: clamp(0.78rem, 0.76rem + 0.10vw, 0.83rem);
+  --step-0:  clamp(0.94rem, 0.92rem + 0.12vw, 1.00rem);
+  --step-1:  clamp(1.06rem, 1.01rem + 0.24vw, 1.20rem);
+  --step-2:  clamp(1.20rem, 1.10rem + 0.45vw, 1.50rem);
+  --step-3:  clamp(1.42rem, 1.25rem + 0.80vw, 1.95rem);
+  --step-4:  clamp(1.70rem, 1.40rem + 1.40vw, 2.60rem);
+  --reader-body: 1.09rem;   /* article body size */
+
+  /* Space (4px base) */
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px;
+  --space-5: 24px; --space-6: 32px; --space-7: 48px; --space-8: 64px;
+
+  /* Radii */
+  --r-sm: 8px; --r-md: 12px; --r-lg: 18px;
+
+  /* Motion — compositor-friendly only */
+  --dur-fast: 150ms; --dur-normal: 260ms;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Elevation */
+  --shadow-1: 0 1px 2px rgba(32,29,24,.05);
+  --shadow-2: 0 8px 24px rgba(32,29,24,.07);
+}
+:root.dark {
+  --shadow-1: 0 1px 2px rgba(0,0,0,.30);
+  --shadow-2: 0 10px 30px rgba(0,0,0,.35);
+}
+@media (prefers-reduced-motion: reduce) {
+  :root { --dur-fast: 0ms; --dur-normal: 0ms; }
+}

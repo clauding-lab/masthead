@@ -145,7 +145,7 @@ export default function OnboardingPage() {
                 className="w-full py-3 rounded-xl font-ui text-base font-semibold transition-opacity"
                 style={{
                   backgroundColor: 'var(--accent)',
-                  color: '#fff',
+                  color: 'var(--accent-contrast)',
                   opacity: selectedIds.size === 0 ? 0.5 : 1,
                 }}
               >
@@ -175,7 +175,7 @@ export default function OnboardingPage() {
             <button
               onClick={handleCookieAccept}
               className="w-full py-3 rounded-xl font-ui text-base font-semibold mb-3"
-              style={{ backgroundColor: 'var(--accent)', color: '#fff' }}
+              style={{ backgroundColor: 'var(--accent)', color: 'var(--accent-contrast)' }}
             >
               Accept Cookies
             </button>

@@ -5,10 +5,11 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        display: ['"Playfair Display"', 'Georgia', 'serif'],
-        body: ['"Source Serif 4"', 'Charter', 'serif'],
-        ui: ['"DM Sans"', 'system-ui', 'sans-serif'],
-        mono: ['"JetBrains Mono"', 'monospace'],
+        ui: ['Inter', 'system-ui', 'sans-serif'],
+        serif: ['Newsreader', 'Iowan Old Style', 'Charter', 'Georgia', 'serif'],
+        display: ['Newsreader', 'Georgia', 'serif'], // alias — retired as screens refactor
+        body: ['Newsreader', 'Georgia', 'serif'],    // alias
+        mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
       },
       colors: {
         brand: {

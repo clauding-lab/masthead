@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import SourceBadge from './SourceBadge';
+import Tag from './ui/Tag';
 import { timeAgo } from '../lib/utils';
 
 export default function HistoryCard({ entry }) {
@@ -19,7 +19,7 @@ export default function HistoryCard({ entry }) {
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-1.5">
           {entry.sourceShortName && (
-            <SourceBadge shortName={entry.sourceShortName} color={entry.sourceColor} />
+            <Tag color={entry.sourceColor} sourceName={entry.sourceShortName} />
           )}
         </div>
         <h2

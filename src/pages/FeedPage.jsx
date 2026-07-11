@@ -49,8 +49,12 @@ export default function FeedPage() {
   return (
     <PullToRefresh onRefresh={refresh}>
       <div className="pb-2">
-        {headlines.map((headline) => (
-          <HeadlineCard key={headline.id} headline={headline} />
+        {headlines.map((headline, index) => (
+          <HeadlineCard
+            key={headline.id}
+            headline={headline}
+            variant={index === 0 ? 'lead' : 'compact'}
+          />
         ))}
       </div>
     </PullToRefresh>

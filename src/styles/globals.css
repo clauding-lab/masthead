@@ -4,37 +4,40 @@
 
 :root {
   /* Light theme (PRIMARY — default experience) */
-  --bg-primary: #FAFAF8;
+  --bg-primary: #FAF8F3;
   --bg-card: #FFFFFF;
-  --bg-surface: #F2F0EC;
-  --text-primary: #1A1A1A;
-  --text-secondary: #6B6B6B;
-  --text-tertiary: #999999;
-  --accent: #C2452D;
-  --accent-soft: #FFF0ED;
-  --border: #E8E6E1;
-  --divider: #F0EEEA;
+  --bg-surface: #F3F0E9;
+  --text-primary: #201D18;
+  --text-secondary: #635C51;
+  --text-tertiary: #6F685D;
+  --accent: #33568C;
+  --accent-soft: #EAF0F8;
+  --accent-contrast: #FFFFFF;
+  --border: #E7E1D6;
+  --divider: #EFEAE1;
   --paywall-badge: #C2452D;
   --error: #E85D4A;
   --success: #3FB68B;
 
-  --font-display: 'Playfair Display', Georgia, serif;
-  --font-body: 'Source Serif 4', 'Charter', serif;
-  --font-ui: 'DM Sans', system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
+  --font-ui: 'Inter', system-ui, sans-serif;
+  --font-serif: 'Newsreader', 'Iowan Old Style', 'Charter', Georgia, serif;
+  --font-display: var(--font-serif);
+  --font-body: var(--font-serif);
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
 :root.dark {
-  --bg-primary: #141414;
-  --bg-card: #1E1E1E;
-  --bg-surface: #252525;
-  --text-primary: #EAEAEA;
-  --text-secondary: #999999;
-  --text-tertiary: #666666;
-  --accent: #E8634A;
-  --accent-soft: #2A1A16;
-  --border: #2A2A2A;
-  --divider: #222222;
+  --bg-primary: #171613;
+  --bg-card: #201E1B;
+  --bg-surface: #262320;
+  --text-primary: #EDE8DF;
+  --text-secondary: #A69E90;
+  --text-tertiary: #948D7F;
+  --accent: #8DB0E4;
+  --accent-soft: #1E2A3B;
+  --accent-contrast: #12233B;
+  --border: #2E2A25;
+  --divider: #272320;
 }
 
 * {
@@ -144,6 +147,33 @@ body {
 
 .safe-top {
   padding-top: env(safe-area-inset-top, 0px);
+}
+
+/* Button primitive states */
+.mh-btn:active {
+  transform: scale(.97);
+}
+
+.mh-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Designed focus ring for every interactive element (matches .mh-btn) */
+a:focus-visible,
+button:focus-visible,
+[role="button"]:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mh-btn {
+    transition: none;
+  }
 }
 
 /* Range slider accent color */

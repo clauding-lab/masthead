@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { discoverRSS } from '../lib/api';
+import Icon from './ui/Icon';
 
 export default function AddSourceModal({ onAdd, onClose }) {
   const [url, setUrl] = useState('');
@@ -62,10 +63,7 @@ export default function AddSourceModal({ onAdd, onClose }) {
             Add New Source
           </h2>
           <button onClick={onClose} className="p-1" style={{ color: 'var(--text-tertiary)' }}>
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
+            <Icon name="close" size={20} />
           </button>
         </div>
 
@@ -91,7 +89,7 @@ export default function AddSourceModal({ onAdd, onClose }) {
               className="px-4 py-2.5 rounded-lg font-ui text-sm font-medium shrink-0"
               style={{
                 backgroundColor: 'var(--accent)',
-                color: '#fff',
+                color: 'var(--accent-contrast)',
                 opacity: isSearching || !url.trim() ? 0.5 : 1,
               }}
             >
@@ -173,7 +171,7 @@ export default function AddSourceModal({ onAdd, onClose }) {
                   <button
                     onClick={() => handleAdd(feed)}
                     className="px-3 py-1.5 rounded-lg font-ui text-xs font-medium shrink-0"
-                    style={{ backgroundColor: 'var(--accent)', color: '#fff' }}
+                    style={{ backgroundColor: 'var(--accent)', color: 'var(--accent-contrast)' }}
                   >
                     Add
                   </button>

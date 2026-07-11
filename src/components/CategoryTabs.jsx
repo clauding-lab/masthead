@@ -25,19 +25,22 @@ export default function CategoryTabs({ selected, onSelect }) {
   }, [selectedSourceIds, customSources]);
 
   return (
-    <div className="px-4 py-2 overflow-x-auto no-scrollbar" style={{ borderBottom: '1px solid var(--divider)' }}>
-      <div className="flex gap-2 min-w-max">
+    <div
+      className="px-4 overflow-x-auto no-scrollbar"
+      style={{ backgroundColor: 'var(--bg-primary)', borderBottom: '1px solid var(--divider)' }}
+    >
+      <div className="flex gap-5 min-w-max">
         {categories.map((cat) => {
           const isActive = selected === cat.id;
           return (
             <button
               key={cat.id ?? 'all'}
               onClick={() => onSelect(cat.id)}
-              className="px-4 py-1.5 rounded-full text-sm font-ui font-medium whitespace-nowrap transition-colors"
+              className="pt-2.5 pb-2 text-sm font-ui font-medium whitespace-nowrap transition-colors"
               style={{
-                backgroundColor: isActive ? 'var(--accent)' : 'var(--bg-surface)',
-                color: isActive ? '#FFFFFF' : 'var(--text-secondary)',
-                border: isActive ? 'none' : '1px solid var(--border)',
+                color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
+                borderBottom: isActive ? '2px solid var(--accent)' : '2px solid transparent',
+                marginBottom: '-1px',
               }}
             >
               {cat.label}

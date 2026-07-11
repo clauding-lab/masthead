@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
-import { getAllFavorites, getAllHistory, saveFavorite, addToHistory } from './db';
+import { getAllFavorites, getAllHistory, saveFavorite, putHistoryEntry } from './db';
+import sourcesData from '../../lib/sources.json';
 
 export async function syncOnSignIn(userId) {
   if (!supabase || !userId) return;
@@ -75,7 +76,23 @@ export async function syncOnSignIn(userId) {
       );
     }
 
-    console.log(`[sync] Synced ${toUpload.length} favs up, ${toDownload.length} down, ${histToUpload.length} history up`);
+    // Pull remote history not in local (preserving original read timestamps)
+    const localHistIds = new Set(localHistory.map((h) => h.id));
+    const histToDownload = (remoteHistory || []).filter((h) => !localHistIds.has(h.article_id));
+    for (const h of histToDownload) {
+      await putHistoryEntry({
+        id: h.article_id,
+        title: h.title,
+        url: h.url,
+        sourceId: h.source_id,
+        sourceName: h.source_name,
+        category: h.category,
+        thumbnail: h.thumbnail,
+        readAt: h.read_at,
+      });
+    }
+
+    console.log(`[sync] Synced ${toUpload.length} favs up, ${toDownload.length} down, ${histToUpload.length} history up, ${histToDownload.length} history down`);
   } catch (err) {
     console.error('[sync] Error:', err);
   }
@@ -110,6 +127,33 @@ export async function removeFavoriteRemote(userId, articleId) {
   } catch (err) {
     console.error('[sync] remove favorite error:', err);
   }
+}
+
+export function buildSourceRows(userId, ids) {
+  const idSet = new Set(ids);
+  return sourcesData.sources
+    .filter((s) => idSet.has(s.id))
+    .map((s) => ({
+      user_id: userId,
+      source_id: s.id,
+      name: s.name,
+      short_name: s.shortName,
+      url: s.url,
+      feed_url: s.feedUrl,
+      category: s.category,
+      color: s.color,
+      is_default: true,
+      is_enabled: true,
+    }));
+}
+
+export async function pushOnboardingSources(userId, ids) {
+  if (!supabase || !userId) return;
+  const rows = buildSourceRows(userId, ids);
+  if (rows.length === 0) return;
+  const { error } = await supabase.from('user_sources').upsert(rows, { onConflict: 'user_id,source_id' });
+  if (error) throw error;
+  await supabase.from('profiles').update({ onboarding_completed: true }).eq('id', userId);
 }
 
 export async function pushHistoryEntry(userId, entry) {

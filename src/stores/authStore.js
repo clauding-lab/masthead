@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
-import { syncOnSignIn } from '../lib/sync';
+import { syncOnSignIn, pushOnboardingSources } from '../lib/sync';
 
 const useAuthStore = create((set, get) => ({
   user: null,
@@ -32,6 +32,17 @@ const useAuthStore = create((set, get) => ({
       // Sync on new sign-in
       if (session?.user && !prevUser) {
         syncOnSignIn(session.user.id).catch(console.error);
+        const pending = localStorage.getItem('masthead-pendingSourceSync');
+        if (pending) {
+          try {
+            const ids = JSON.parse(pending);
+            pushOnboardingSources(session.user.id, ids)
+              .then(() => localStorage.removeItem('masthead-pendingSourceSync'))
+              .catch(console.error);
+          } catch {
+            localStorage.removeItem('masthead-pendingSourceSync');
+          }
+        }
       }
     });
   },
@@ -47,8 +58,15 @@ const useAuthStore = create((set, get) => ({
 
   signOut: async () => {
     if (!supabase) return;
-    await supabase.auth.signOut();
-    set({ user: null, session: null });
+    try {
+      await supabase.auth.signOut();
+    } finally {
+      const { clearUserData } = await import('../lib/localData');
+      await clearUserData();
+      set({ user: null, session: null });
+      const useSettingsStore = (await import('./settingsStore')).default;
+      useSettingsStore.getState().initFromStorage();
+    }
   },
 }));
 

@@ -80,6 +80,10 @@ export default function OnboardingPage() {
     }
     setIsSigningIn(true);
     setSignInError(null);
+    const ids = [...selectedIds];
+    localStorage.setItem('masthead-selectedSources', JSON.stringify(ids));
+    localStorage.setItem('masthead-onboarded', 'true');
+    localStorage.setItem('masthead-pendingSourceSync', JSON.stringify(ids));
     const { error } = await signInWithGoogle();
     if (error) {
       setIsSigningIn(false);

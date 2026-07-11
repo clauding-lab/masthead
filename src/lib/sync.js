@@ -151,7 +151,8 @@ export async function pushOnboardingSources(userId, ids) {
   if (!supabase || !userId) return;
   const rows = buildSourceRows(userId, ids);
   if (rows.length === 0) return;
-  await supabase.from('user_sources').upsert(rows, { onConflict: 'user_id,source_id' });
+  const { error } = await supabase.from('user_sources').upsert(rows, { onConflict: 'user_id,source_id' });
+  if (error) throw error;
   await supabase.from('profiles').update({ onboarding_completed: true }).eq('id', userId);
 }
 

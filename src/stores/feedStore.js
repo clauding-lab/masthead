@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import { fetchHeadlines, fetchHeadlinesWithSources } from '../lib/api';
 import useSettingsStore from './settingsStore';
 
+let requestSeq = 0;
+
 const useFeedStore = create((set, get) => ({
   headlines: [],
   isLoading: false,
@@ -14,8 +16,12 @@ const useFeedStore = create((set, get) => ({
   },
 
   fetchFeeds: async () => {
+    const requestId = ++requestSeq;
     const { selectedCategory } = get();
     set({ isLoading: true, error: null });
+    const applyIfLatest = (partial) => {
+      if (requestId === requestSeq) set(partial);
+    };
     try {
       const effectiveSources = useSettingsStore.getState().getEffectiveSources();
       let data;
@@ -38,13 +44,13 @@ const useFeedStore = create((set, get) => ({
         data = await fetchHeadlines({ category: selectedCategory });
       }
 
-      set({
+      applyIfLatest({
         headlines: data.headlines || [],
         fetchedAt: data.fetchedAt,
         isLoading: false,
       });
     } catch (err) {
-      set({ error: err.message, isLoading: false });
+      applyIfLatest({ error: 'Could not refresh feeds', isLoading: false });
     }
   },
 

@@ -1,4 +1,19 @@
 const paths = {
+  // BottomTabBar.jsx Feed tab
+  feed: (
+    <>
+      <path d="M4 11a9 9 0 0 1 9 9" />
+      <path d="M4 4a16 16 0 0 1 16 16" />
+      <circle cx="5" cy="19" r="1" />
+    </>
+  ),
+  // BottomTabBar.jsx History tab
+  history: (
+    <>
+      <circle cx="12" cy="12" r="10" />
+      <polyline points="12 6 12 12 16 14" />
+    </>
+  ),
   // ReaderPage.jsx back button
   back: <path d="m15 18-6-6 6-6" />,
   // FavoritesPage.jsx search bar

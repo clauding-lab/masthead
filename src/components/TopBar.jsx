@@ -6,10 +6,10 @@ export default function TopBar({ fetchedAt, isLoading, onRefresh }) {
     <header className="sticky top-0 z-50 safe-top" style={{ backgroundColor: 'var(--bg-primary)' }}>
       <div className="flex items-center justify-between px-4 py-3">
         <h1
-          className="font-display text-2xl font-bold tracking-wide"
-          style={{ color: 'var(--accent)' }}
+          className="text-xl font-semibold"
+          style={{ fontFamily: 'var(--font-serif)', color: 'var(--text-primary)' }}
         >
-          MASTHEAD
+          Masthead
         </h1>
         <div className="flex items-center gap-3">
           {fetchedAt && (

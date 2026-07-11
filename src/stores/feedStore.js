@@ -49,7 +49,7 @@ const useFeedStore = create((set, get) => ({
         fetchedAt: data.fetchedAt,
         isLoading: false,
       });
-    } catch (err) {
+    } catch {
       applyIfLatest({ error: 'Could not refresh feeds', isLoading: false });
     }
   },

@@ -26,4 +26,13 @@ export default defineConfig([
       'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
     },
   },
+  // Server-side modules, the local dev server, the Vercel handlers, and their
+  // tests run in Node, not the browser — give them Node globals so process,
+  // Buffer, etc. are defined. (Additive: merges on top of the browser block.)
+  {
+    files: ['lib/**/*.js', 'server.js', 'api/**/*.{js,mjs}', 'vitest.config.js'],
+    languageOptions: {
+      globals: globals.node,
+    },
+  },
 ])

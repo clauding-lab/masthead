@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { getAllFavorites, getAllHistory, saveFavorite, addToHistory, putHistoryEntry } from './db';
+import { getAllFavorites, getAllHistory, saveFavorite, putHistoryEntry } from './db';
 import sourcesData from '../../lib/sources.json';
 
 export async function syncOnSignIn(userId) {

@@ -1,0 +1,20 @@
+-- Harden Phase 1 — Task 13
+-- handle_new_user() is a SECURITY DEFINER trigger function that fires AFTER
+-- INSERT on auth.users to seed a public.profiles row. It must NOT be callable
+-- directly through the PostgREST RPC surface (/rest/v1/rpc/handle_new_user),
+-- because a SECURITY DEFINER function invoked by an untrusted caller runs with
+-- elevated (definer) privileges.
+--
+-- IMPORTANT: revoking EXECUTE from anon/authenticated alone is INSUFFICIENT.
+-- Postgres grants EXECUTE to PUBLIC by default, and both API roles inherit it
+-- through PUBLIC membership — so the function stays callable until PUBLIC is
+-- revoked too. This was confirmed empirically: after revoking only the explicit
+-- role grants, has_function_privilege('anon', ...) still returned true and the
+-- security advisor kept flagging it. Revoking from PUBLIC is the load-bearing
+-- statement here.
+--
+-- The trigger continues to fire normally: trigger execution does not re-check
+-- EXECUTE against the inserting role, and the function is SECURITY DEFINER, so
+-- it runs as its owner regardless. service_role keeps its explicit EXECUTE grant
+-- for any legitimate server-side use.
+revoke execute on function public.handle_new_user() from public, anon, authenticated;

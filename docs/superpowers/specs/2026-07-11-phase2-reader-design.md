@@ -61,8 +61,8 @@ Paper over screen; one restrained accent; two typefaces doing distinct jobs. Bot
 | `--ink-2` | `#635C51` | `#A69E90` | secondary text |
 | `--ink-3` | `#938B7E` | `#726B5F` | muted / meta |
 | `--hairline` | `#E7E1D6` | `#2E2A25` | dividers / borders |
-| `--accent` | `#33568C` | `#8DB0E4` | links, active state |
-| `--accent-soft` | `#EAF0F8` | `#1E2A3B` | accent-tint backgrounds |
+| `--accent` | `#C2452D` | `#E8634A` | links, active state — **newspaper red, Masthead's current identity, kept.** Ink-blue (`#33568C` / `#8DB0E4`) is the documented alternative shown in the mockup; final hue is the user's call. |
+| `--accent-soft` | `#FFF0ED` | `#2A1A16` | accent-tint backgrounds |
 
 Subtle per-source scannability dots (muted brand-adjacent hues) are decorative identity, **kept distinct from `--accent`**, which is reserved for interactive/active state. Semantic colors (error/success) are separate again and do not use the accent hue.
 
@@ -75,31 +75,36 @@ Subtle per-source scannability dots (muted brand-adjacent hues) are decorative i
 
 **Motion:** compositor-only (`transform`/`opacity`); `prefers-reduced-motion` honored everywhere. Keep the existing gestures — `PullToRefresh`, `useSwipeBack`, `PageTransition`. Add only subtle, purposeful transitions (list rise on load, hover/active on interactive elements). No decorative motion.
 
-**Themes:** token-level. `:root` = light defaults; `@media (prefers-color-scheme: dark)` redefines the tokens; `:root[data-theme="light|dark"]` overrides both directions for the manual toggle. Components are styled **through tokens only**, never inside the media query.
+**Themes:** keep the app's **existing mechanism** — Tailwind `darkMode: 'class'` + a `.dark` class on `<html>`, toggled by `settingsStore` (`setTheme`/`applyTheme`), which already supports System/Light/Dark and persists to `localStorage['masthead-theme']` (current default: Light). The redesign **refines the token values** in `globals.css` (`:root` and `:root.dark`); it does **not** introduce a competing `data-theme` scheme or a new theme hook. Components are styled **through tokens only**. (Changing the default from Light to System is a UX change — out of scope for 2A, flagged for the user.)
 
 ### 2.4 Architecture — the foundation
 
-The point of 2A is that later slices inherit a system instead of re-inventing one.
+The point of 2A is that later slices inherit a system instead of re-inventing one. Masthead **already** has a token layer (CSS custom properties in `globals.css` `:root`/`:root.dark`) and a theme system (`settingsStore`). 2A **refines and extends** these — it does not start from scratch.
+
+Current styling pattern (keep it — it is the codebase convention): **Tailwind utilities for layout** (`flex`, `gap`, `px-4`) + **inline `style={{ color: 'var(--token)' }}` for themed color** + Tailwind font utilities (`font-display`/`font-ui`). The refactor keeps this shape and routes color/spacing/type through the refined tokens and the new primitives.
 
 ```
 src/styles/
-  tokens.css        NEW — CSS custom properties: color (both themes), type scale, space, radii, motion
-  typography.css    NEW — @font-face (self-hosted Inter + Newsreader), base type rules
-  globals.css       EDIT — consume tokens; remove hardcoded palette/spacing
-  reader.css        EDIT — serif reading rules via tokens
-src/components/ui/  NEW — small headless-ish primitives:
+  tokens.css        NEW — extend the token set: type scale, spacing, radii, motion, shadow
+                    (color tokens stay in globals.css so there is ONE theme source)
+  globals.css       EDIT — refine :root / :root.dark palette to "Quiet Editorial" values;
+                    consume tokens; keep the .dark mechanism
+  typography.css    NEW — @font-face for self-hosted Inter + Newsreader; base type rules
+  reader.css        EDIT — serif reading rules via tokens (already serif; refine)
+src/components/ui/  NEW — small primitives consumed by the refactored screens:
   Surface.jsx         card/raised container (border, radius, shadow via tokens)
   Button.jsx          variants: primary / ghost / icon; focus-visible; active state
-  Tag.jsx             the source "kicker" (dot + uppercase label + separator)
-  ThemeToggle.jsx     System / Light / Dark control (used in Settings)
+  Tag.jsx             the source "kicker" (dot + uppercase source label); may wrap/replace SourceBadge
   Icon.jsx            thin wrapper over the inline SVG set (single source of truth)
-src/hooks/
-  useTheme.js       NEW — reads/sets data-theme; persists choice; defaults to System
+tailwind.config.js  EDIT — fontFamily → Inter (ui) + Newsreader (serif); map theme colors to the
+                    CSS vars so Tailwind utilities and inline styles agree (resolves today's
+                    duplication — the palette currently lives in BOTH tailwind.config.js and
+                    globals.css; CSS vars become the single source of truth)
 ```
 
-Then refactor the deep-redesign components onto tokens + primitives. Tokened-only screens get their palette/type from the cascade with minimal edits.
+**No new theme hook or toggle component:** `settingsStore` already owns System/Light/Dark and the Settings screen already has the control — 2A just restyles it. Then refactor the deep-redesign components onto tokens + primitives; tokened-only screens inherit from the cascade with minimal edits.
 
-**Fonts:** vendored under `public/fonts/` (served at a stable path so `index.html` can `<link rel="preload">` the critical weights; the PWA service worker precache must include them), latin-subset. Because we self-host, `vercel.json`'s CSP no longer needs `fonts.googleapis.com` / `fonts.gstatic.com`. Tightening the CSP to drop them is a small security win **but a CSP edit → needs sign-off (AGENTS landmine #6 / VISION)**; tracked as an optional follow-up in §2.9, not silently bundled.
+**Fonts:** today `index.html` loads DM Sans / Playfair Display / Source Serif 4 / JetBrains Mono from Google Fonts. 2A replaces the pairing with **Inter (UI) + Newsreader (serif)**, vendored under `public/fonts/` (stable path so `index.html` can `<link rel="preload">` the critical weights; the PWA service-worker precache must include them), latin-subset. Because we self-host, `vercel.json`'s CSP no longer needs `fonts.googleapis.com` / `fonts.gstatic.com`. Tightening the CSP to drop them is a small security win **but a CSP edit → needs sign-off (AGENTS landmine #6 / VISION)**; tracked as an optional follow-up in §2.9, not silently bundled.
 
 ### 2.5 Data flow
 

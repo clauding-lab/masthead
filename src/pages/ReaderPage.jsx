@@ -2,10 +2,12 @@ import { useEffect, useRef } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import useArticleStore from '../stores/articleStore';
 import useSettingsStore from '../stores/settingsStore';
+import useAuthStore from '../stores/authStore';
 import SourceBadge from '../components/SourceBadge';
 import FavoriteToggle from '../components/FavoriteToggle';
 import EmptyState from '../components/EmptyState';
 import { addToHistory, getFavorite } from '../lib/db';
+import { pushHistoryEntry } from '../lib/sync';
 import { formatDate, formatReadingTime } from '../lib/utils';
 import useSwipeBack from '../hooks/useSwipeBack';
 import { sanitizeArticleHtml } from '../lib/sanitize';
@@ -74,6 +76,9 @@ export default function ReaderPage() {
         category: article.category,
         thumbnail: article.leadImage,
         isPaywall: false,
+      }).then((entry) => {
+        const user = useAuthStore.getState().user;
+        if (user) pushHistoryEntry(user.id, entry).catch(() => {});
       });
     }
   }, [article]);

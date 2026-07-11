@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { getAllFavorites, getAllHistory, saveFavorite, addToHistory } from './db';
+import { getAllFavorites, getAllHistory, saveFavorite, addToHistory, putHistoryEntry } from './db';
 import sourcesData from '../../lib/sources.json';
 
 export async function syncOnSignIn(userId) {
@@ -76,7 +76,23 @@ export async function syncOnSignIn(userId) {
       );
     }
 
-    console.log(`[sync] Synced ${toUpload.length} favs up, ${toDownload.length} down, ${histToUpload.length} history up`);
+    // Pull remote history not in local (preserving original read timestamps)
+    const localHistIds = new Set(localHistory.map((h) => h.id));
+    const histToDownload = (remoteHistory || []).filter((h) => !localHistIds.has(h.article_id));
+    for (const h of histToDownload) {
+      await putHistoryEntry({
+        id: h.article_id,
+        title: h.title,
+        url: h.url,
+        sourceId: h.source_id,
+        sourceName: h.source_name,
+        category: h.category,
+        thumbnail: h.thumbnail,
+        readAt: h.read_at,
+      });
+    }
+
+    console.log(`[sync] Synced ${toUpload.length} favs up, ${toDownload.length} down, ${histToUpload.length} history up, ${histToDownload.length} history down`);
   } catch (err) {
     console.error('[sync] Error:', err);
   }

@@ -93,6 +93,12 @@ export async function addToHistory(headline) {
   return entry;
 }
 
+export async function putHistoryEntry(entry) {
+  const db = await getDB();
+  await db.put('history', entry);
+  return entry;
+}
+
 export async function getAllHistory() {
   const db = await getDB();
   const all = await db.getAll('history');

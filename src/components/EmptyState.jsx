@@ -32,7 +32,7 @@ export default function EmptyState({ title, message, action, onAction }) {
         <button
           onClick={onAction}
           className="mt-4 px-6 py-2 rounded-full font-ui text-sm font-medium transition-opacity hover:opacity-90"
-          style={{ backgroundColor: 'var(--accent)', color: '#FFFFFF' }}
+          style={{ backgroundColor: 'var(--accent)', color: '#fff' }}
         >
           {action}
         </button>

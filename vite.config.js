@@ -12,7 +12,7 @@ export default defineConfig({
         name: 'Masthead',
         short_name: 'Masthead',
         description: 'Premium news aggregator with clean reader view',
-        theme_color: '#FAFAF8',
+        theme_color: '#FAF8F3',
         background_color: '#FAFAF8',
         display: 'standalone',
         scope: '/',

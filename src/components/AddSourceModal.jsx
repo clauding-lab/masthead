@@ -89,7 +89,7 @@ export default function AddSourceModal({ onAdd, onClose }) {
               className="px-4 py-2.5 rounded-lg font-ui text-sm font-medium shrink-0"
               style={{
                 backgroundColor: 'var(--accent)',
-                color: '#fff',
+                color: 'var(--accent-contrast)',
                 opacity: isSearching || !url.trim() ? 0.5 : 1,
               }}
             >
@@ -171,7 +171,7 @@ export default function AddSourceModal({ onAdd, onClose }) {
                   <button
                     onClick={() => handleAdd(feed)}
                     className="px-3 py-1.5 rounded-lg font-ui text-xs font-medium shrink-0"
-                    style={{ backgroundColor: 'var(--accent)', color: '#fff' }}
+                    style={{ backgroundColor: 'var(--accent)', color: 'var(--accent-contrast)' }}
                   >
                     Add
                   </button>

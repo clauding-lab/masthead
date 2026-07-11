@@ -12,6 +12,7 @@
   --text-tertiary: #6F685D;
   --accent: #33568C;
   --accent-soft: #EAF0F8;
+  --accent-contrast: #FFFFFF;
   --border: #E7E1D6;
   --divider: #EFEAE1;
   --paywall-badge: #C2452D;
@@ -34,6 +35,7 @@
   --text-tertiary: #948D7F;
   --accent: #8DB0E4;
   --accent-soft: #1E2A3B;
+  --accent-contrast: #12233B;
   --border: #2E2A25;
   --divider: #272320;
 }

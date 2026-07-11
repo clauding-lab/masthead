@@ -246,7 +246,7 @@ export default function ReaderPage() {
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-block mt-3 px-4 py-2 rounded-lg font-ui text-sm"
-                style={{ backgroundColor: 'var(--accent)', color: '#fff' }}
+                style={{ backgroundColor: 'var(--accent)', color: 'var(--accent-contrast)' }}
               >
                 Read on original site
               </a>

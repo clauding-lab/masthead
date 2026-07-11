@@ -62,7 +62,7 @@ export default function SourceSelectGrid({ sources, selectedIds, onToggle, minRe
                     {isSelected ? (
                       <svg width="20" height="20" viewBox="0 0 20 20" fill="var(--accent)">
                         <rect width="20" height="20" rx="4" />
-                        <path d="M6 10l3 3 5-6" stroke="#fff" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                        <path d="M6 10l3 3 5-6" stroke="var(--accent-contrast)" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
                     ) : (
                       <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="var(--border)" strokeWidth="2">

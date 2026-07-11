@@ -1,7 +1,7 @@
 .reader-body {
-  font-family: var(--font-body);
-  font-size: 18px;
-  line-height: 1.75;
+  font-family: var(--font-serif);
+  font-size: var(--reader-body);
+  line-height: 1.72;
   max-width: 680px;
   margin: 0 auto;
   padding: 0 20px;
@@ -133,4 +133,19 @@
 .reader-body th {
   background: var(--bg-surface);
   font-weight: 600;
+}
+
+/* Reading-progress bar (compositor-only: transform, no layout properties) */
+.reader-progress-track {
+  height: 2px;
+  background: var(--divider);
+}
+
+.reader-progress-bar {
+  height: 100%;
+  width: 100%;
+  background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: left;
+  will-change: transform;
 }

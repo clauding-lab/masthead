@@ -1,5 +1,7 @@
 import { parseHTML } from 'linkedom';
 import Parser from 'rss-parser';
+import { safeFetch, assertPublicUrl } from '../lib/urlGuard.js';
+import { applyCors } from '../lib/httpGuards.js';
 
 const parser = new Parser();
 
@@ -9,26 +11,25 @@ const COMMON_FEED_PATHS = [
 ];
 
 async function fetchWithTimeout(url, ms = 5000) {
-  const res = await fetch(url, {
+  return safeFetch(url, {
     headers: {
       'User-Agent': 'Mozilla/5.0 (compatible; Masthead/1.0)',
       Accept: 'text/html, application/rss+xml, application/atom+xml, application/xml, text/xml',
     },
-    signal: AbortSignal.timeout(ms),
-    redirect: 'follow',
+    timeoutMs: ms,
+    maxBytes: 3 * 1024 * 1024,
   });
-  return res;
 }
 
 async function validateFeed(feedUrl) {
   try {
-    const res = await fetchWithTimeout(feedUrl, 5000);
-    if (!res.ok) return null;
-    const contentType = res.headers.get('content-type') || '';
-    const text = await res.text();
+    const { response, text } = await fetchWithTimeout(feedUrl, 5000);
+    if (!response.ok) return null;
+    const contentType = response.headers.get('content-type') || '';
+    const body = await text();
     // Quick check: must look like XML
-    if (!text.trim().startsWith('<') && !contentType.includes('xml')) return null;
-    const feed = await parser.parseString(text);
+    if (!body.trim().startsWith('<') && !contentType.includes('xml')) return null;
+    const feed = await parser.parseString(body);
     if (!feed.items || feed.items.length === 0) return null;
     return {
       feedUrl,
@@ -42,9 +43,7 @@ async function validateFeed(feedUrl) {
 }
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  applyCors(req, res, 'POST, OPTIONS');
 
   if (req.method === 'OPTIONS') return res.status(204).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
@@ -68,6 +67,13 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Invalid URL' });
   }
 
+  try {
+    await assertPublicUrl(inputUrl);
+  } catch (err) {
+    console.error('Discover-rss guard error:', err.message);
+    return res.status(400).json({ error: 'URL not allowed' });
+  }
+
   const feeds = [];
 
   // Step 1: Check if the URL itself is a feed
@@ -79,9 +85,9 @@ export default async function handler(req, res) {
 
   // Step 2: Fetch HTML and look for <link rel="alternate" type="...rss/atom...">
   try {
-    const htmlRes = await fetchWithTimeout(inputUrl, 5000);
+    const { response: htmlRes, text: htmlText } = await fetchWithTimeout(inputUrl, 5000);
     if (htmlRes.ok) {
-      const html = await htmlRes.text();
+      const html = await htmlText();
       const { document: doc } = parseHTML(html);
       const links = doc.querySelectorAll(
         'link[rel="alternate"][type="application/rss+xml"], link[rel="alternate"][type="application/atom+xml"]'

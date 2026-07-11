@@ -1,5 +1,6 @@
 import { fetchAllFeeds } from '../lib/feedParser.js';
 import { createRequire } from 'module';
+import { applyCors } from '../lib/httpGuards.js';
 
 const require = createRequire(import.meta.url);
 const sources = require('../lib/sources.json');
@@ -9,10 +10,7 @@ let cache = { data: null, fetchedAt: null, key: null };
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 export default async function handler(req, res) {
-  // CORS headers
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  applyCors(req, res, 'GET, POST, OPTIONS');
 
   if (req.method === 'OPTIONS') {
     return res.status(204).end();
@@ -29,6 +27,9 @@ export default async function handler(req, res) {
     const { sources: customSources, category } = body || {};
     if (!customSources || !Array.isArray(customSources) || customSources.length === 0) {
       return res.status(400).json({ error: 'sources array is required' });
+    }
+    if (customSources.length > 30) {
+      return res.status(400).json({ error: 'Too many sources (max 30)' });
     }
     try {
       const headlines = await fetchAllFeeds(customSources, { category });

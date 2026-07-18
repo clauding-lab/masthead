@@ -1,12 +1,12 @@
 import { useEffect } from 'react';
-import useFeedStore from '../stores/feedStore';
+import useNewsFeedStore from '../stores/feedStore';
 import HeadlineCard from '../components/HeadlineCard';
 import SkeletonCard from '../components/SkeletonCard';
 import EmptyState from '../components/EmptyState';
 import PullToRefresh from '../components/PullToRefresh';
 
-export default function FeedPage() {
-  const { headlines, isLoading, error, fetchFeeds, refresh } = useFeedStore();
+export default function FeedPage({ store = useNewsFeedStore, linkOut = false }) {
+  const { headlines, isLoading, error, fetchFeeds, refresh } = store();
 
   useEffect(() => {
     if (headlines.length === 0) {
@@ -54,6 +54,7 @@ export default function FeedPage() {
             key={headline.id}
             headline={headline}
             variant={index === 0 ? 'lead' : 'compact'}
+            linkOut={linkOut}
           />
         ))}
       </div>

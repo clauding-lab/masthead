@@ -1,5 +1,23 @@
 import { create } from 'zustand';
 import sourcesData from '../../lib/sources.json';
+import { buildCatalogIndex } from '../../lib/catalogIndex';
+import { sourceKind } from '../lib/sourceKind';
+
+const catalogIndex = buildCatalogIndex(sourcesData);
+
+// Exported pure for tests; heals stale ids after a catalog rename (2D §5.1).
+export function healSelectedIds(ids, index = catalogIndex) {
+  let changed = false;
+  const healed = ids.map((id) => {
+    const canonical = index.canonicalId(id);
+    if (canonical && canonical !== id) {
+      changed = true;
+      return canonical;
+    }
+    return id;
+  });
+  return changed ? healed : ids;
+}
 
 function getInitialTheme() {
   if (typeof window === 'undefined') return 'light';
@@ -23,9 +41,17 @@ function applyTheme(theme) {
 function loadSelectedSourceIds() {
   try {
     const stored = localStorage.getItem('masthead-selectedSources');
-    if (stored) return JSON.parse(stored);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      const healed = healSelectedIds(parsed);
+      if (healed !== parsed) {
+        localStorage.setItem('masthead-selectedSources', JSON.stringify(healed));
+      }
+      return healed;
+    }
   } catch { /* ignore */ }
-  return sourcesData.sources.map((s) => s.id);
+  // News only: blogs and social are opt-in surfaces (2D spec §4.4).
+  return sourcesData.sources.filter((s) => sourceKind(s) === 'news').map((s) => s.id);
 }
 
 function loadCustomSources() {
@@ -97,6 +123,14 @@ const useSettingsStore = create((set, get) => ({
     const defaults = sourcesData.sources.filter((s) => idSet.has(s.id));
     const custom = customSources.filter((s) => idSet.has(s.id));
     return [...defaults, ...custom];
+  },
+
+  getEffectiveSourcesByKind: (kind) => {
+    const { selectedSourceIds, customSources } = get();
+    const idSet = new Set(selectedSourceIds);
+    return [...sourcesData.sources, ...customSources].filter(
+      (s) => sourceKind(s) === kind && idSet.has(s.id)
+    );
   },
 
   getAllSources: () => {

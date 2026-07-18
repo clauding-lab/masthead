@@ -76,7 +76,9 @@ Gains an "Appears in" choice: News feed / Blogs & Newsletters. Auto-suggestion: 
 
 ### 4.6 Social cards link out
 
-Cards for `kind: "social"` sources open the original post URL directly (new tab / external), bypassing the reader. Rationale: Bluesky/Mastodon post pages are JS apps that Readability extracts poorly; an honest link-out beats a broken reader. The heart (save) still works on social cards — it saves link + metadata; body extraction may file a retry shell, which the 2C pipeline already handles. All other kinds keep today's reader flow.
+Cards for `kind: "social"` sources open the original post URL directly (new tab / external), bypassing the reader. Rationale: Bluesky/Mastodon post pages are JS apps that Readability extracts poorly; an honest link-out beats a broken reader. All other kinds keep today's reader flow.
+
+**Corrected at final review (owner-approved 2026-07-18):** this section originally promised "the heart still works on social cards." That was unimplementable as written — the save affordance lives only inside the reader, which social cards bypass by design — so no save path exists for social posts in 2D. A card-level save affordance is a tracked follow-up (2E candidate).
 
 ## 5. Server changes (all in existing modules)
 

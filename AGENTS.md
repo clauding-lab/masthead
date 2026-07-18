@@ -39,9 +39,10 @@ docs/superpowers/      specs + plans (e.g. the Phase 1 Harden spec/plan)
 | Frontend only | `npm run dev:frontend` |
 | Local API server only | `npm run dev:api` |
 | Build for release | `npm run build` (includes `scripts/check-bundle.mjs` service-role leak scan) |
-| Unit tests (vitest, 148 tests incl. `api/**`) | `npm test` |
+| Unit tests (vitest, 194 tests incl. `api/**`) | `npm test` |
 | Tests, watch mode | `npm run test:watch` |
-| Lint | `npx eslint src lib api server.js scripts` |
+| Lint (baseline: 4 pre-existing errors — 3 set-state-in-effect + 1 `tailwind.config.js` no-undef — plus 5 warnings; zero NEW is the gate) | `npx eslint src lib api server.js scripts` |
+| Catalog feed health — manual, pre-merge, deliberately NOT in CI (36 network calls) | `npm run verify-catalog` |
 | Preview production build | `npm run preview` |
 
 Gotchas:
@@ -86,6 +87,9 @@ No CI workflows yet (`.github/workflows/` does not exist). Release = **merge to 
 12. **The Supabase project is on the OLD auto-grant default-privilege regime** — `pg_default_acl` grants `anon`/`authenticated` full privileges on every new table at CREATE. Every new-table migration MUST include explicit `revoke all ... from public, anon, authenticated` before its grants; RLS policies alone do not remove the grants. Follow `20260718_create_articles.sql` / `20260719_create_user_saved_articles.sql` verbatim as the pattern (verified against prod 2026-07-18). Extends landmine 5, which covers the same trap for functions.
 13. **Retiring a table = TWO migrations, not one.** Create-and-copy before the app deploy; `drop` only in a second migration applied after the new deploy is live-verified. The currently-deployed app keeps querying the old table until the deploy completes — dropping early silently breaks its writes (supabase-js swallows the error per landmine 11). Pattern: `20260719_create_user_saved_articles.sql` + `20260719_drop_user_favorites.sql` (2026-07-18).
 14. **Prod DDL cannot be agent-run.** The Claude Code permission classifier blocks `supabase db query --linked` DDL regardless of owner approval in chat. Standing pattern: the agent stages the migration file and enumerates it in the pre-flight; the OWNER executes `! supabase db query --linked -f supabase/migrations/<file>` in-session; the agent then verifies via read-only queries (`to_regclass`, grants/policies, live REST probes). Never assume a pasted command executed — verify with a read (a pasted command once arrived as chat text and never ran, 2026-07-18).
+15. **rss-parser silently drops `media:*` fields unless `customFields` is configured** (`lib/feedParser.js` `parserOptions`). Removing that config makes `extractThumbnail`'s media branches dead code again for EVERY feed — and unit tests that hand-feed objects will stay green while it happens. Any new feed producer type (a new platform's RSS flavor) requires a REAL captured payload fixture in `lib/__fixtures__/` run through `new Parser(parserOptions)` in `lib/feedParser.test.js`, not a hand-written one. (Caught 2026-07-18 — the media branches had been dead since 2B; see AGENT_LEARNINGS.)
+16. **Kind-scoped feed surfaces must NEVER fall back to the kind-agnostic catalog.** All request selectors in `src/stores/feedStore.js` set `fallbackToCatalog: false`; empty selection renders an empty state / picker, it does not call the GET catalog path (`getCatalogHeadlines` serves ALL kinds — the server is deliberately kind-blind). "Restoring" the pre-2D zero-sources fallback reintroduces blog/social leakage into News "All" with wrong link behavior. Test-enforced per surface in `feedStore.test.js`. (Final-review catch, 2026-07-18.)
+17. **Never hard-rename a catalog slug in `lib/sources.json`** — change `id` and add the old id to `aliases` in the same commit. `lib/catalogIndex.js` resolves aliases server-side (feedService POST + GET) and heals client localStorage on boot; store rows under the old slug age out via the 14-day prune. A hard rename strands service-worker-cached clients AND orphans user selections. The structural test (`lib/catalog.test.js`) forbids alias/id collisions.
 
 ## Communication & timezone
 

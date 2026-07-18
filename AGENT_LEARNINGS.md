@@ -37,6 +37,34 @@ When something ships broken, when a methodology gap is exposed, or when a smoke 
 
 ## Entries (most recent first)
 
+## 2026-07-18 — Phase 2 · 2D | rss-parser's default whitelist made the media:* thumbnail path dead code for every feed
+
+**Trigger:** Task 4's house rule that fixtures must be REAL captured payloads — the first live Mastodon capture run through the real parser failed the thumbnail assertion that hand-fed unit-test objects had always passed.
+
+**What went wrong:** `rss-parser`'s default field list drops all `media:content`/`media:thumbnail` elements, so `extractThumbnail()`'s first two branches (`lib/feedParser.js`) had NEVER fired in production — for any feed, since 2B. Existing unit tests passed because they handed the function pre-built objects, bypassing the parser that would have stripped the fields. Invisible until a genuine end-to-end fixture (raw XML → real `Parser` → `mapFeedItems`) was forced through.
+
+**Lesson:** a unit test that feeds a function idealized input can keep dead code green forever; only a real-producer payload through the real pipeline proves a branch is alive.
+
+**Prevention:** `customFields` in the shared `Parser` config; three real captured fixtures (Bluesky, Mastodon, BBC) in `lib/__fixtures__/` exercised through `new Parser(parserOptions)` in `lib/feedParser.test.js` — both media branches now regression-locked. Owner signed off on the blast radius (existing news thumbnails may switch to publisher-designated media URLs).
+
+**Hotfix:** Shipped inside PR #7 (`feat(parser): title fallback… + real bsky/mastodon fixtures` + regression fixture commit).
+
+**Cross-references:** global rulebook (generalizes: parser/SDK default configs silently drop namespaced fields); auto-memory `masthead-2d-blogs-catalog-shipped`.
+
+## 2026-07-18 — Phase 2 · 2D | "Preserve today's behavior" across a taxonomy change = tomorrow's leak
+
+**Trigger:** Final whole-branch review (the only reviewer holding all 12 tasks at once), after every task-scoped review had passed clean.
+
+**What went wrong:** The plan deliberately preserved the pre-2D fallback "zero selected sources → GET the whole catalog" for the News tab. Pre-2D the catalog was all-news, so the fallback was kind-safe by accident. Post-2D the same catalog held blogs + social, so a user who disabled all 15 news toggles (reachable — the ≥1-source guard is global, not per-kind) got all 36 sources leaked into News "All", with social items carrying the wrong link behavior. Task-scoped tests couldn't see it: settingsStore's guard and feedStore's selector were each correct in isolation; the bug only exists in their composition.
+
+**Lesson:** a behavior preserved verbatim across a data-taxonomy change silently inherits the OLD taxonomy's safety assumptions — re-derive every fallback's safety under the new taxonomy, and always run one reviewer over the composed whole.
+
+**Prevention:** `fallbackToCatalog: false` on all kind-scoped surfaces (empty selection → empty state); enforcing no-network tests per surface in `src/stores/feedStore.test.js`; whole-branch final review kept as a standing gate (it caught this).
+
+**Hotfix:** `fix(stores): news surface never falls back to the kind-agnostic catalog` (71b767c, inside PR #7 pre-merge).
+
+**Cross-references:** auto-memory `masthead-2d-blogs-catalog-shipped`; superpowers subagent-driven-development final-review stage.
+
 ## 2026-07-18 — Phase 2 · 2C | One bad row silently strands a whole supabase-js batch upsert
 
 **Trigger:** Fresh-context security review of the 2C sync rework, before merge (PR #6).

@@ -1491,7 +1491,7 @@ git add scripts/verify-catalog.mjs package.json
 git commit -m "feat(catalog): manual 36-feed health check script"
 ```
 
-Then follow the house `/ship` flow: push branch, open PR titled "Phase 2 · Slice 2D — blogs & newsletters + expanded catalog", body citing: exact test count + exit codes, verify-catalog output, live-drive checklist results, lint baseline note. **Pre-merge house process: spec red-team already done at spec stage; run the adversarial code review (Opus, countable verdicts) before merge approval. Merge only with per-action owner approval.**
+Then follow the house `/ship` flow: push branch, open PR titled "Phase 2 · Slice 2D — blogs & newsletters + expanded catalog", body citing: exact test count + exit codes, verify-catalog output, live-drive checklist results, lint baseline note. **Pre-merge house process: spec red-team skipped for 2D by owner call (2026-07-18); code review before merge runs on Sonnet 5 per owner's "sonnet 5 only" directive for this slice (overrides the global Opus-for-review routing). Merge only with per-action owner approval.**
 
 Post-deploy proof (spec §10): measured poll run (all 36 attempted, failures enumerated), anon REST query showing blog+social rows, live drive on masthead-news.vercel.app, headers/PWA intact.
 

@@ -19,7 +19,19 @@ create table public.user_saved_articles (
   updated_at   timestamptz not null default now(),
   deleted_at   timestamptz,
   primary key (user_id, article_id),
-  constraint content_size check (content is null or length(content) <= 1600000)
+  constraint content_size check (content is null or length(content) <= 1600000),
+  -- Size hygiene on every free-text column, so the content cap can't be
+  -- sidestepped through a sibling field.
+  constraint sane_text_sizes check (
+    length(url) <= 4000
+    and (title is null or length(title) <= 2000)
+    and (byline is null or length(byline) <= 1000)
+    and (excerpt is null or length(excerpt) <= 10000)
+    and (lead_image is null or length(lead_image) <= 4000)
+    and (source_id is null or length(source_id) <= 200)
+    and (source_name is null or length(source_name) <= 500)
+    and (source_color is null or length(source_color) <= 50)
+  )
 );
 
 create index user_saved_articles_user_saved_idx

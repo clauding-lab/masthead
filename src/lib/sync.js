@@ -5,21 +5,31 @@ import {
 } from './db';
 import sourcesData from '../../lib/sources.json';
 
+// Only http(s)-url records are cloud-syncable: the table's url CHECK would
+// reject anything else, and one bad row in a batch upsert aborts the WHOLE
+// statement — silently stranding every other row (security-review HIGH).
+export function isCloudSyncable(f) {
+  return typeof f?.url === 'string' && /^https?:\/\//i.test(f.url);
+}
+
+const clampText = (v, max) =>
+  typeof v === 'string' ? (v.length > max ? v.slice(0, max) : v) : null;
+
 function savedRowFromLocal(userId, f) {
   return {
     user_id: userId,
     article_id: f.id,
-    url: f.url,
-    title: f.title ?? null,
-    byline: f.byline ?? null,
-    excerpt: f.excerpt ?? null,
+    url: clampText(f.url, 4000),
+    title: clampText(f.title, 2000),
+    byline: clampText(f.byline, 1000),
+    excerpt: clampText(f.excerpt, 10000),
     content: f.content ?? null,
     content_truncated: !!f.contentTruncated,
-    lead_image: f.leadImage ?? f.thumbnail ?? null,
+    lead_image: clampText(f.leadImage ?? f.thumbnail, 4000),
     word_count: f.wordCount ?? null,
-    source_id: f.sourceId ?? null,
-    source_name: f.sourceName ?? null,
-    source_color: f.sourceColor ?? null,
+    source_id: clampText(f.sourceId, 200),
+    source_name: clampText(f.sourceName, 500),
+    source_color: clampText(f.sourceColor, 50),
     is_paywall: !!f.isPaywall,
     saved_at: f.savedAt ?? new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -56,15 +66,17 @@ export { savedRowFromLocal, localFromSavedRow };
 // leaves any stored body untouched (spec §4 step 5).
 export async function pushSaved(userId, record) {
   if (!supabase || !userId) return;
+  if (!isCloudSyncable(record)) return; // link-less items stay device-only
   try {
     const row = savedRowFromLocal(userId, record);
     if (!record.content) {
       delete row.content;
       delete row.content_truncated;
     }
-    await supabase
+    const { error } = await supabase
       .from('user_saved_articles')
       .upsert(row, { onConflict: 'user_id,article_id' });
+    if (error) console.error('[sync] push saved rejected:', error.message);
   } catch (err) {
     console.error('[sync] push saved error:', err);
   }
@@ -116,12 +128,19 @@ export async function syncOnSignIn(userId) {
       }
     }
 
-    // Pass 2: set difference. Push local-only (bodies included); pull live cloud-only.
-    const toUpload = [...localById.values()].filter((f) => !cloudById.has(f.id));
+    // Pass 2: set difference. Push local-only (bodies included); pull live
+    // cloud-only. Non-http(s) records are skipped — one CHECK-violating row
+    // would abort the entire batch statement and silently strand the rest.
+    const toUpload = [...localById.values()].filter(
+      (f) => !cloudById.has(f.id) && isCloudSyncable(f)
+    );
+    let uploaded = 0;
     if (toUpload.length > 0) {
-      await supabase
+      const { error: uploadError } = await supabase
         .from('user_saved_articles')
         .upsert(toUpload.map((f) => savedRowFromLocal(userId, f)), { onConflict: 'user_id,article_id' });
+      if (uploadError) console.error('[sync] saved upload rejected:', uploadError.message);
+      else uploaded = toUpload.length;
     }
     let pulled = 0;
     for (const r of cloud) {
@@ -205,7 +224,7 @@ export async function syncOnSignIn(userId) {
       });
     }
 
-    console.log(`[sync] Saved: ${toUpload.length} up, ${pulled} down; history: ${histToUpload.length} up, ${histToDownload.length} down`);
+    console.log(`[sync] Saved: ${uploaded} up, ${pulled} down; history: ${histToUpload.length} up, ${histToDownload.length} down`);
   } catch (err) {
     console.error('[sync] Error:', err);
   }

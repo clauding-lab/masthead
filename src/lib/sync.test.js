@@ -61,6 +61,16 @@ describe('pushSaved', () => {
     expect('content_truncated' in rows).toBe(false);
     expect(rows.title).toBe('T');
   });
+  it('skips link-less records entirely — the url CHECK would reject them', async () => {
+    await pushSaved('u1', LOCAL({ url: '' }));
+    expect(upsertCalls).toHaveLength(0);
+  });
+  it('clamps oversized sibling text fields to the DB size checks', async () => {
+    await pushSaved('u1', LOCAL({ excerpt: 'x'.repeat(20000), title: 'y'.repeat(5000) }));
+    const { rows } = upsertCalls[0];
+    expect(rows.excerpt).toHaveLength(10000);
+    expect(rows.title).toHaveLength(2000);
+  });
 });
 
 describe('removeSaved', () => {
@@ -97,6 +107,14 @@ describe('syncOnSignIn three-pass merge', () => {
     const pulled = await getFavorite('c'.repeat(16));
     expect(pulled.content).toBe('<p>cloud</p>');
     expect(pulled.isFavorite).toBe(true);
+  });
+  it('pass 2: one link-less record cannot poison the upload batch — it is skipped, the rest upload', async () => {
+    await saveFavorite(LOCAL({ id: 'g'.repeat(16), url: 'https://x.example/good' }));
+    await saveFavorite(LOCAL({ id: 'z'.repeat(16), url: '' })); // link-less heart
+    await syncOnSignIn('u1');
+    const pushed = upsertCalls.flatMap((c) => (Array.isArray(c.rows) ? c.rows : [c.rows]));
+    expect(pushed.some((r) => r.article_id === 'g'.repeat(16))).toBe(true);
+    expect(pushed.some((r) => r.article_id === 'z'.repeat(16))).toBe(false);
   });
   it('pass 3: body beats shell in BOTH directions', async () => {
     await saveFavorite(LOCAL({ id: 'b'.repeat(16), url: 'https://x.example/b' })); // local body

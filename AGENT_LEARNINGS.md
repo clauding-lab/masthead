@@ -37,6 +37,34 @@ When something ships broken, when a methodology gap is exposed, or when a smoke 
 
 ## Entries (most recent first)
 
+## 2026-07-18 — Phase 2 · 2C | One bad row silently strands a whole supabase-js batch upsert
+
+**Trigger:** Fresh-context security review of the 2C sync rework, before merge (PR #6).
+
+**What went wrong:** The sign-in sync pushed all local-only saved articles in ONE batched `.upsert([...])`. A single link-less hearted item (`url: ''`, legal locally) violates the table's url CHECK — and because PostgREST runs the batch as one SQL statement, every row in it is rejected. supabase-js does not throw on DB errors; it returns `{ error }`, which the code discarded, and the success log still printed the upload count. Net effect (had it shipped): the user's entire library silently never syncs to the cloud, forever, while the UI claims it's saved.
+
+**Lesson:** supabase-js `try/catch` is a decoy — always inspect the returned `error`; and never let a row that CAN violate a constraint into a batch statement with rows that can't.
+
+**Prevention:** `isCloudSyncable()` pre-filter on every cloud write path + explicit `error` inspection with a loud log; enforcing tests (`src/lib/sync.test.js` "batch-poison" cases). Distilled as AGENTS.md landmine 11.
+
+**Hotfix:** Fixed pre-merge in the same PR (`feat: security-review hardening — batch-poison guard, error inspection, column size caps`).
+
+**Cross-references:** AGENTS.md landmines 11–13; auto-memory `masthead-2c-library-shipped`.
+
+## 2026-07-18 — Phase 2 · 2B/2C rollouts | Prod DDL is owner-run; verify the paste, don't trust it
+
+**Trigger:** Applying the three 2B/2C migrations to prod Supabase during the pre-flight-gated rollouts.
+
+**What went wrong:** Two separate lessons. (1) The Claude Code permission classifier blocks agent-run `supabase db query --linked` DDL even after explicit owner approval in chat — the agent cannot apply migrations, full stop. (2) When the owner first pasted the `!`-prefixed migration command, it arrived as chat text and never executed; the agent nearly proceeded on the assumption it had run. A `to_regclass()` read showed the table was absent.
+
+**Lesson:** prod DDL follows a fixed choreography — agent stages the migration file and enumerates it in ONE pre-flight; owner executes `! supabase db query --linked -f <file>`; agent then proves the result with read-only queries (never from the pasted command's presence).
+
+**Prevention:** Choreography codified as AGENTS.md landmine 14; verification reads (to_regclass, grants/policies, live REST probes) are part of every rollout checklist.
+
+**Hotfix:** N/A — caught before any wrong action; owner re-ran the command via `!` and it applied cleanly.
+
+**Cross-references:** AGENTS.md landmine 14; auto-memory `masthead-2b-storage-shipped` / `masthead-2c-library-shipped`.
+
 ## 2026-07-11 — Phase 1 Harden | Sign-out left the Supabase JWT under `sb-*` keys
 
 **Trigger:** Opus adversarial review of the sign-out / `clearUserData` task during the Harden build.

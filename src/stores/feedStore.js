@@ -1,34 +1,43 @@
 import { create } from 'zustand';
-import { fetchHeadlines, fetchHeadlinesWithSources } from '../lib/api';
+import { fetchHeadlinesWithSources } from '../lib/api';
 import useSettingsStore from './settingsStore';
 
-let requestSeq = 0;
+// One store per feed surface (2D spec §4.2): News and Blogs each keep their
+// own headlines, category, and in-flight sequence guard.
+export function createFeedStore(selectRequest) {
+  let requestSeq = 0;
+  return create((set, get) => ({
+    headlines: [],
+    isLoading: false,
+    error: null,
+    fetchedAt: null,
+    selectedCategory: null,
 
-const useFeedStore = create((set, get) => ({
-  headlines: [],
-  isLoading: false,
-  error: null,
-  fetchedAt: null,
-  selectedCategory: null,
+    setCategory: (category) => {
+      set({ selectedCategory: category });
+    },
 
-  setCategory: (category) => {
-    set({ selectedCategory: category });
-  },
+    fetchFeeds: async () => {
+      const requestId = ++requestSeq;
+      const { selectedCategory } = get();
+      set({ isLoading: true, error: null });
+      const applyIfLatest = (partial) => {
+        if (requestId === requestSeq) set(partial);
+      };
+      try {
+        const settings = useSettingsStore.getState();
+        const { sources, category, fallbackToCatalog } = selectRequest(settings, selectedCategory);
 
-  fetchFeeds: async () => {
-    const requestId = ++requestSeq;
-    const { selectedCategory } = get();
-    set({ isLoading: true, error: null });
-    const applyIfLatest = (partial) => {
-      if (requestId === requestSeq) set(partial);
-    };
-    try {
-      const effectiveSources = useSettingsStore.getState().getEffectiveSources();
-      let data;
+        if (sources.length === 0 && !fallbackToCatalog) {
+          // Kind-scoped surface with nothing enabled: an empty slice, not
+          // the server's default catalog (2D spec §4.3).
+          applyIfLatest({ headlines: [], fetchedAt: new Date().toISOString(), isLoading: false });
+          return;
+        }
 
-      if (effectiveSources.length > 0) {
-        // Map sources to the shape the backend expects
-        const sourcesPayload = effectiveSources.map((s) => ({
+        // Past the guard above, sources is always non-empty: every surface
+        // now resolves to a kind-scoped POST, never the catalog-wide GET.
+        const sourcesPayload = sources.map((s) => ({
           id: s.id || s.source_id,
           name: s.name,
           shortName: s.shortName || s.short_name,
@@ -39,24 +48,36 @@ const useFeedStore = create((set, get) => ({
           color: s.color,
           paywall: s.paywall || false,
         }));
-        data = await fetchHeadlinesWithSources(sourcesPayload, { category: selectedCategory });
-      } else {
-        data = await fetchHeadlines({ category: selectedCategory });
+        const data = await fetchHeadlinesWithSources(sourcesPayload, { category });
+
+        applyIfLatest({
+          headlines: data.headlines || [],
+          fetchedAt: data.fetchedAt,
+          isLoading: false,
+        });
+      } catch {
+        applyIfLatest({ error: 'Could not refresh feeds', isLoading: false });
       }
+    },
 
-      applyIfLatest({
-        headlines: data.headlines || [],
-        fetchedAt: data.fetchedAt,
-        isLoading: false,
-      });
-    } catch {
-      applyIfLatest({ error: 'Could not refresh feeds', isLoading: false });
-    }
-  },
+    refresh: async () => {
+      return get().fetchFeeds();
+    },
+  }));
+}
 
-  refresh: async () => {
-    return get().fetchFeeds();
-  },
-}));
+export const selectNewsRequest = (settings, selectedCategory) =>
+  selectedCategory === 'social'
+    ? { sources: settings.getEffectiveSourcesByKind('social'), category: null, fallbackToCatalog: false }
+    : { sources: settings.getEffectiveSourcesByKind('news'), category: selectedCategory, fallbackToCatalog: false };
 
-export default useFeedStore;
+export const selectBlogsRequest = (settings, selectedCategory) => ({
+  sources: settings.getEffectiveSourcesByKind('blog'),
+  category: selectedCategory,
+  fallbackToCatalog: false,
+});
+
+export const useNewsFeedStore = createFeedStore(selectNewsRequest);
+export const useBlogsFeedStore = createFeedStore(selectBlogsRequest);
+
+export default useNewsFeedStore;

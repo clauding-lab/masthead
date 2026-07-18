@@ -6,6 +6,7 @@ import SourceToggleRow from '../components/SourceToggleRow';
 import AddSourceModal from '../components/AddSourceModal';
 import Icon from '../components/ui/Icon';
 import sourcesData from '../../lib/sources.json';
+import { sourceKind } from '../lib/sourceKind';
 
 const FONT_SIZES = [
   { value: 14, label: 'Small' },
@@ -71,6 +72,11 @@ export default function SettingsPage() {
   };
 
   const allSources = [...sourcesData.sources, ...customSources];
+  const sourceGroups = [
+    ['News Sources', allSources.filter((s) => sourceKind(s) === 'news')],
+    ['Blogs & Newsletters', allSources.filter((s) => sourceKind(s) === 'blog')],
+    ['Social', allSources.filter((s) => sourceKind(s) === 'social')],
+  ];
 
   const handleAddSource = (source) => {
     addCustomSource(source);
@@ -134,35 +140,39 @@ export default function SettingsPage() {
         </div>
       </SettingSection>
 
-      {/* News Sources */}
-      <SettingSection title="News Sources">
-        <div>
-          {allSources.map((src) => {
-            const isCustom = customSources.some((c) => c.id === src.id);
-            return (
-              <SourceToggleRow
-                key={src.id}
-                source={src}
-                isEnabled={selectedSourceIds.includes(src.id)}
-                onToggle={toggleSource}
-                onRemove={isCustom ? removeCustomSource : undefined}
-              />
-            );
-          })}
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="w-full px-4 py-3 flex items-center gap-3 font-ui text-sm font-medium"
-            style={{ color: 'var(--accent)' }}
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10" />
-              <line x1="12" y1="8" x2="12" y2="16" />
-              <line x1="8" y1="12" x2="16" y2="12" />
-            </svg>
-            Add New Source
-          </button>
-        </div>
-      </SettingSection>
+      {/* Sources, grouped by kind */}
+      {sourceGroups.map(([title, sources], gi) => (
+        <SettingSection key={title} title={title}>
+          <div>
+            {sources.map((src) => {
+              const isCustom = customSources.some((c) => c.id === src.id);
+              return (
+                <SourceToggleRow
+                  key={src.id}
+                  source={src}
+                  isEnabled={selectedSourceIds.includes(src.id)}
+                  onToggle={toggleSource}
+                  onRemove={isCustom ? removeCustomSource : undefined}
+                />
+              );
+            })}
+            {gi === 0 && (
+              <button
+                onClick={() => setShowAddModal(true)}
+                className="w-full px-4 py-3 flex items-center gap-3 font-ui text-sm font-medium"
+                style={{ color: 'var(--accent)' }}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="16" />
+                  <line x1="8" y1="12" x2="16" y2="12" />
+                </svg>
+                Add New Source
+              </button>
+            )}
+          </div>
+        </SettingSection>
+      ))}
 
       {/* Theme */}
       <SettingSection title="Appearance">

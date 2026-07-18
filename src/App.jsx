@@ -1,41 +1,18 @@
 import { Routes, Route } from 'react-router-dom';
 import { useEffect, useState } from 'react';
-import TopBar from './components/TopBar';
 import BottomTabBar from './components/BottomTabBar';
-import CategoryTabs from './components/CategoryTabs';
 import PageTransition from './components/PageTransition';
 import ErrorBoundary from './components/ErrorBoundary';
-import FeedPage from './pages/FeedPage';
+import FeedLayout from './pages/FeedLayout';
 import ReaderPage from './pages/ReaderPage';
 import SavedPage from './pages/SavedPage';
 import SavePage from './pages/SavePage';
 import HistoryPage from './pages/HistoryPage';
 import SettingsPage from './pages/SettingsPage';
 import OnboardingPage from './pages/OnboardingPage';
-import useFeedStore from './stores/feedStore';
 import useSettingsStore from './stores/settingsStore';
 import useAuthStore from './stores/authStore';
 import { processPendingSaves } from './lib/library';
-
-function FeedLayout() {
-  const { fetchedAt, isLoading, selectedCategory, setCategory, refresh } = useFeedStore();
-
-  const handleCategoryChange = (cat) => {
-    setCategory(cat);
-  };
-
-  useEffect(() => {
-    refresh();
-  }, [selectedCategory]);
-
-  return (
-    <>
-      <TopBar fetchedAt={fetchedAt} isLoading={isLoading} onRefresh={refresh} />
-      <CategoryTabs selected={selectedCategory} onSelect={handleCategoryChange} />
-      <FeedPage />
-    </>
-  );
-}
 
 export default function App() {
   const initFromStorage = useSettingsStore((s) => s.initFromStorage);
@@ -82,7 +59,8 @@ export default function App() {
       <main className="flex-1">
         <PageTransition>
           <Routes>
-            <Route path="/" element={<FeedLayout />} />
+            <Route path="/" element={<FeedLayout mode="news" />} />
+            <Route path="/blogs" element={<FeedLayout mode="blogs" />} />
             <Route path="/article/:id" element={<ErrorBoundary><ReaderPage /></ErrorBoundary>} />
             <Route path="/favorites" element={<SavedPage />} />
             <Route path="/save" element={<SavePage />} />

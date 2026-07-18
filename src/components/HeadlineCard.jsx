@@ -40,7 +40,7 @@ function Thumbnail({ headline, className }) {
   );
 }
 
-export default function HeadlineCard({ headline, variant = 'compact' }) {
+export default function HeadlineCard({ headline, variant = 'compact', linkOut = false }) {
   const linkState = {
     url: headline.url,
     sourceId: headline.sourceId,
@@ -48,12 +48,17 @@ export default function HeadlineCard({ headline, variant = 'compact' }) {
     sourceShortName: headline.sourceShortName,
     sourceColor: headline.sourceColor,
   };
+  // Social posts open the original (2D spec §4.6) — reader extraction on
+  // bsky/mastodon post pages produces junk, an honest link-out beats it.
+  const Wrapper = linkOut ? 'a' : Link;
+  const wrapperProps = linkOut
+    ? { href: headline.url, target: '_blank', rel: 'noopener noreferrer' }
+    : { to: `/article/${headline.id}`, state: linkState };
 
   if (variant === 'lead') {
     return (
-      <Link
-        to={`/article/${headline.id}`}
-        state={linkState}
+      <Wrapper
+        {...wrapperProps}
         className="group block no-underline px-4 pt-4 pb-5"
         style={{ borderBottom: '1px solid var(--divider)', color: 'inherit' }}
       >
@@ -69,14 +74,13 @@ export default function HeadlineCard({ headline, variant = 'compact' }) {
           {headline.title}
         </h2>
         <MetaRow headline={headline} />
-      </Link>
+      </Wrapper>
     );
   }
 
   return (
-    <Link
-      to={`/article/${headline.id}`}
-      state={linkState}
+    <Wrapper
+      {...wrapperProps}
       className="group flex gap-3 px-4 py-3 cursor-pointer transition-colors block no-underline"
       style={{ borderBottom: '1px solid var(--divider)', color: 'inherit' }}
     >
@@ -94,6 +98,6 @@ export default function HeadlineCard({ headline, variant = 'compact' }) {
         headline={headline}
         className="flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden"
       />
-    </Link>
+    </Wrapper>
   );
 }

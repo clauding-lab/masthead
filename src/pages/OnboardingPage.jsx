@@ -3,8 +3,12 @@ import sourcesData from '../../lib/sources.json';
 import SourceSelectGrid from '../components/SourceSelectGrid';
 import useAuthStore from '../stores/authStore';
 import { supabase } from '../lib/supabase';
+import { sourceKind } from '../lib/sourceKind';
 
-const ALL_SOURCE_IDS = new Set(sourcesData.sources.map((s) => s.id));
+// Onboarding is news-only (2D spec §4.4): blogs and social are opt-in
+// in their own surfaces, never bulk-enabled at first run.
+const NEWS_SOURCES = sourcesData.sources.filter((s) => sourceKind(s) === 'news');
+const ALL_SOURCE_IDS = new Set(NEWS_SOURCES.map((s) => s.id));
 
 export default function OnboardingPage() {
   const [step, setStep] = useState(1);
@@ -41,7 +45,7 @@ export default function OnboardingPage() {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
           // Bulk insert selected default sources
-          const rows = sourcesData.sources
+          const rows = NEWS_SOURCES
             .filter((s) => selectedIds.has(s.id))
             .map((s) => ({
               user_id: user.id,
@@ -133,7 +137,7 @@ export default function OnboardingPage() {
               Select at least one news source to get started. You can change this later in Settings.
             </p>
             <SourceSelectGrid
-              sources={sourcesData.sources}
+              sources={NEWS_SOURCES}
               selectedIds={selectedIds}
               onToggle={handleToggle}
               minRequired={1}

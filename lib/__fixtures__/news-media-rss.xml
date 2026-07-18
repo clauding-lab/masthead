@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?><rss xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:atom="http://www.w3.org/2005/Atom" version="2.0" xmlns:media="http://search.yahoo.com/mrss/">
+    <channel>
+        <title><![CDATA[BBC News]]></title>
+        <description><![CDATA[BBC News - News Front Page]]></description>
+        <link>https://www.bbc.co.uk/news</link>
+        <image>
+            <url>https://news.bbcimg.co.uk/nol/shared/img/bbc_news_120x60.gif</url>
+            <title>BBC News</title>
+            <link>https://www.bbc.co.uk/news</link>
+        </image>
+        <generator>RSS for Node</generator>
+        <lastBuildDate>Sat, 18 Jul 2026 14:47:55 GMT</lastBuildDate>
+        <atom:link href="https://feeds.bbci.co.uk/news/rss.xml" rel="self" type="application/rss+xml"/>
+        <copyright><![CDATA[Copyright: (C) British Broadcasting Corporation, see https://www.bbc.co.uk/usingthebbc/terms-of-use/#15metadataandrssfeeds for terms and conditions of reuse.]]></copyright>
+        <language><![CDATA[en-gb]]></language>
+        <ttl>15</ttl>
+        <item>
+            <title><![CDATA[Burnham to announce plans for new North Sea oil and gas drilling]]></title>
+            <description><![CDATA[Drilling has become a controversial topic for the Labour party after the 2024 manifesto pledged to not issue new licences.]]></description>
+            <link>https://www.bbc.co.uk/news/articles/c935yx2z9d4o?at_medium=RSS&amp;at_campaign=rss</link>
+            <guid isPermaLink="false">https://www.bbc.co.uk/news/articles/c935yx2z9d4o#0</guid>
+            <pubDate>Sat, 18 Jul 2026 13:36:36 GMT</pubDate>
+            <media:thumbnail width="240" height="135" url="https://ichef.bbci.co.uk/ace/standard/240/cpsprodpb/413e/live/d5be0f20-8285-11f1-b976-0b9c15b0ccfc.jpg"/>
+        </item>
+        <item>
+            <title><![CDATA[Ruthless plotter? Flip-flopper? Dad dancer? Insiders reveal the real Andy Burnham]]></title>
+            <description><![CDATA[Who is the real Andy Burnham? Laura Kuenssberg talks to more than 20 people who know him to work it out]]></description>
+            <link>https://www.bbc.co.uk/news/articles/c3043vl2l7zo?at_medium=RSS&amp;at_campaign=rss</link>
+            <guid isPermaLink="false">https://www.bbc.co.uk/news/articles/c3043vl2l7zo#0</guid>
+            <pubDate>Sat, 18 Jul 2026 14:32:48 GMT</pubDate>
+            <media:thumbnail width="240" height="135" url="https://ichef.bbci.co.uk/ace/standard/240/cpsprodpb/ab52/live/19534330-8106-11f1-926f-c90d1bcfbc84.jpg"/>
+        </item>
+    </channel>
+</rss>

@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:webfeeds="http://webfeeds.org/rss/1.0" xmlns:media="http://search.yahoo.com/mrss/">
+  <channel>
+    <title>Ars Technica</title>
+    <description>Public posts from @arstechnica@mastodon.social</description>
+    <link>https://mastodon.social/@arstechnica</link>
+    <item>
+      <guid isPermaLink="true">https://mastodon.social/@arstechnica/116940712015369605</guid>
+      <link>https://mastodon.social/@arstechnica/116940712015369605</link>
+      <pubDate>Sat, 18 Jul 2026 11:20:57 +0000</pubDate>
+      <description>&lt;p&gt;Will AI fix prior authorization—or make it worse?&lt;/p&gt;&lt;p&gt;The government is piloting a program that uses AI for insurance-coverage decisions.&lt;br /&gt;&lt;a href="https://arstechnica.com/ai/2026/07/will-ai-fix-prior-authorization-or-make-it-worse/?utm_brand=arstechnica&amp;amp;utm_social-type=owned&amp;amp;utm_source=mastodon&amp;amp;utm_medium=social" target="_blank" rel="nofollow noopener" translate="no"&gt;&lt;span class="invisible"&gt;https://&lt;/span&gt;&lt;span class="ellipsis"&gt;arstechnica.com/ai/2026/07/wil&lt;/span&gt;&lt;span class="invisible"&gt;l-ai-fix-prior-authorization-or-make-it-worse/?utm_brand=arstechnica&amp;amp;utm_social-type=owned&amp;amp;utm_source=mastodon&amp;amp;utm_medium=social&lt;/span&gt;&lt;/a&gt;&lt;/p&gt;</description>
+      <media:content url="https://files.mastodon.social/media_attachments/files/116/940/711/907/112/322/original/2d43a9018130b265.jpg" type="image/jpeg" fileSize="44655" medium="image">
+        <media:rating scheme="urn:simple">nonadult</media:rating>
+      </media:content>
+    </item>
+    <item>
+      <guid isPermaLink="true">https://mastodon.social/@arstechnica/116937071189272687</guid>
+      <link>https://mastodon.social/@arstechnica/116937071189272687</link>
+      <pubDate>Fri, 17 Jul 2026 19:55:02 +0000</pubDate>
+      <description>&lt;p&gt;Google-backed satellites for wildfire detection launch as smoke chokes US, Canada&lt;/p&gt;&lt;p&gt;The FireSat program can spot wildfires that other satellites miss.&lt;br /&gt;&lt;a href="https://arstechnica.com/space/2026/07/google-backed-satellites-for-wildfire-detection-launch-as-smoke-chokes-us-canada/?utm_brand=arstechnica&amp;amp;utm_social-type=owned&amp;amp;utm_source=mastodon&amp;amp;utm_medium=social" target="_blank" rel="nofollow noopener" translate="no"&gt;&lt;span class="invisible"&gt;https://&lt;/span&gt;&lt;span class="ellipsis"&gt;arstechnica.com/space/2026/07/&lt;/span&gt;&lt;span class="invisible"&gt;google-backed-satellites-for-wildfire-detection-launch-as-smoke-chokes-us-canada/?utm_brand=arstechnica&amp;amp;utm_social-type=owned&amp;amp;utm_source=mastodon&amp;amp;utm_medium=social&lt;/span&gt;&lt;/a&gt;&lt;/p&gt;</description>
+      <media:content url="https://files.mastodon.social/media_attachments/files/116/937/071/082/923/960/original/0fad74fe55422546.png" type="image/png" fileSize="1638614" medium="image">
+        <media:rating scheme="urn:simple">nonadult</media:rating>
+      </media:content>
+    </item>
+  </channel>
+</rss>

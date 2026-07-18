@@ -1,29 +1,4 @@
-import { useMemo } from 'react';
-import useSettingsStore from '../stores/settingsStore';
-import sourcesData from '../../lib/sources.json';
-
-export default function CategoryTabs({ selected, onSelect }) {
-  const selectedSourceIds = useSettingsStore((s) => s.selectedSourceIds);
-  const customSources = useSettingsStore((s) => s.customSources);
-
-  const categories = useMemo(() => {
-    // Combine default + custom sources, filter to enabled ones
-    const allSources = [...sourcesData.sources, ...customSources];
-    const idSet = new Set(selectedSourceIds);
-    const active = allSources.filter((s) => idSet.has(s.id));
-
-    const seen = new Set();
-    const cats = [];
-    for (const src of active) {
-      const cat = src.category;
-      if (cat && !seen.has(cat)) {
-        seen.add(cat);
-        cats.push({ id: cat, label: cat.charAt(0).toUpperCase() + cat.slice(1) });
-      }
-    }
-    return [{ id: null, label: 'All' }, ...cats];
-  }, [selectedSourceIds, customSources]);
-
+export default function CategoryTabs({ categories, selected, onSelect }) {
   return (
     <div
       className="px-4 overflow-x-auto no-scrollbar"

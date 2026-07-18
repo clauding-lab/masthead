@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { fetchHeadlines, fetchHeadlinesWithSources } from '../lib/api';
+import { fetchHeadlinesWithSources } from '../lib/api';
 import useSettingsStore from './settingsStore';
 
 // One store per feed surface (2D spec §4.2): News and Blogs each keep their
@@ -35,23 +35,20 @@ export function createFeedStore(selectRequest) {
           return;
         }
 
-        let data;
-        if (sources.length > 0) {
-          const sourcesPayload = sources.map((s) => ({
-            id: s.id || s.source_id,
-            name: s.name,
-            shortName: s.shortName || s.short_name,
-            url: s.url,
-            feedUrl: s.feedUrl || s.feed_url,
-            feedType: s.feedType || s.feed_type || 'rss',
-            category: s.category,
-            color: s.color,
-            paywall: s.paywall || false,
-          }));
-          data = await fetchHeadlinesWithSources(sourcesPayload, { category });
-        } else {
-          data = await fetchHeadlines({ category });
-        }
+        // Past the guard above, sources is always non-empty: every surface
+        // now resolves to a kind-scoped POST, never the catalog-wide GET.
+        const sourcesPayload = sources.map((s) => ({
+          id: s.id || s.source_id,
+          name: s.name,
+          shortName: s.shortName || s.short_name,
+          url: s.url,
+          feedUrl: s.feedUrl || s.feed_url,
+          feedType: s.feedType || s.feed_type || 'rss',
+          category: s.category,
+          color: s.color,
+          paywall: s.paywall || false,
+        }));
+        const data = await fetchHeadlinesWithSources(sourcesPayload, { category });
 
         applyIfLatest({
           headlines: data.headlines || [],
@@ -72,7 +69,7 @@ export function createFeedStore(selectRequest) {
 export const selectNewsRequest = (settings, selectedCategory) =>
   selectedCategory === 'social'
     ? { sources: settings.getEffectiveSourcesByKind('social'), category: null, fallbackToCatalog: false }
-    : { sources: settings.getEffectiveSourcesByKind('news'), category: selectedCategory, fallbackToCatalog: true };
+    : { sources: settings.getEffectiveSourcesByKind('news'), category: selectedCategory, fallbackToCatalog: false };
 
 export const selectBlogsRequest = (settings, selectedCategory) => ({
   sources: settings.getEffectiveSourcesByKind('blog'),

@@ -1,26 +1,42 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
+const { settingsStoreMock } = vi.hoisted(() => ({
+  settingsStoreMock: { getEffectiveSourcesByKind: () => [] },
+}));
+
 vi.mock('../lib/api', () => ({
   fetchHeadlines: vi.fn(),
   fetchHeadlinesWithSources: vi.fn(),
 }));
 vi.mock('./settingsStore', () => ({
-  default: { getState: () => ({ getEffectiveSourcesByKind: () => [] }) },
+  default: { getState: () => settingsStoreMock },
 }));
 
 import { fetchHeadlines, fetchHeadlinesWithSources } from '../lib/api';
 import useFeedStore, { useBlogsFeedStore, selectNewsRequest, selectBlogsRequest } from './feedStore';
 
+// Every test starts with zero enabled sources of any kind; individual tests
+// override settingsStoreMock.getEffectiveSourcesByKind when they need sources.
+beforeEach(() => {
+  settingsStoreMock.getEffectiveSourcesByKind = () => [];
+});
+
 describe('fetchFeeds sequencing', () => {
   beforeEach(() => {
     useFeedStore.setState({ headlines: [], selectedCategory: null });
-    fetchHeadlines.mockReset();
+    fetchHeadlinesWithSources.mockReset();
   });
 
   it('a slow older request cannot overwrite a newer response', async () => {
+    // At least one news source must be enabled so fetchFeeds takes the
+    // POST path (2D spec §4.3: empty news never falls back to the GET).
+    settingsStoreMock.getEffectiveSourcesByKind = () => [
+      { id: 's1', name: 'S', url: 'u', feedUrl: 'f' },
+    ];
+
     let resolveFirst;
-    fetchHeadlines
+    fetchHeadlinesWithSources
       .mockImplementationOnce(
         () => new Promise((resolve) => { resolveFirst = resolve; })
       )
@@ -64,6 +80,24 @@ describe('store factory (2D spec §4.2)', () => {
     expect(state.fetchedAt).toEqual(expect.any(String));
     expect(state.fetchedAt).toBeTruthy();
   });
+
+  it('the news surface with zero enabled news sources makes no network call and never falls back to the catalog (2D spec §4.3)', async () => {
+    fetchHeadlines.mockReset();
+    fetchHeadlinesWithSources.mockReset();
+    useFeedStore.setState({
+      headlines: [], selectedCategory: null, fetchedAt: null, isLoading: false, error: null,
+    });
+
+    await useFeedStore.getState().fetchFeeds();
+
+    expect(fetchHeadlines).not.toHaveBeenCalled();
+    expect(fetchHeadlinesWithSources).not.toHaveBeenCalled();
+    const state = useFeedStore.getState();
+    expect(state.headlines).toEqual([]);
+    expect(state.isLoading).toBe(false);
+    expect(state.fetchedAt).toEqual(expect.any(String));
+    expect(state.fetchedAt).toBeTruthy();
+  });
 });
 
 describe('request selectors (2D spec §4.3)', () => {
@@ -72,7 +106,7 @@ describe('request selectors (2D spec §4.3)', () => {
   };
   it('news mode requests news sources with the chip category', () => {
     expect(selectNewsRequest(settings, 'macro')).toEqual({
-      sources: [{ id: 'news-1' }], category: 'macro', fallbackToCatalog: true,
+      sources: [{ id: 'news-1' }], category: 'macro', fallbackToCatalog: false,
     });
   });
   it('the social chip requests social sources with no category filter', () => {

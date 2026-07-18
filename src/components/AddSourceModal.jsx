@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { discoverRSS } from '../lib/api';
+import { suggestKind } from '../lib/suggestKind';
 import Icon from './ui/Icon';
 
 export default function AddSourceModal({ onAdd, onClose }) {
@@ -8,6 +9,7 @@ export default function AddSourceModal({ onAdd, onClose }) {
   const [feeds, setFeeds] = useState(null);
   const [error, setError] = useState(null);
   const [category, setCategory] = useState('custom');
+  const [kind, setKind] = useState('news');
 
   const handleSearch = async () => {
     if (!url.trim()) return;
@@ -19,6 +21,7 @@ export default function AddSourceModal({ onAdd, onClose }) {
       const result = await discoverRSS(url.trim());
       if (result.feeds && result.feeds.length > 0) {
         setFeeds(result.feeds);
+        setKind(suggestKind(result.feeds[0].feedUrl || url.trim()));
       } else {
         setError('No RSS Available');
       }
@@ -39,6 +42,7 @@ export default function AddSourceModal({ onAdd, onClose }) {
       category,
       color: '#666666',
       paywall: false,
+      kind,
     });
   };
 
@@ -95,6 +99,29 @@ export default function AddSourceModal({ onAdd, onClose }) {
             >
               {isSearching ? '...' : 'Find'}
             </button>
+          </div>
+
+          {/* Appears in (2D spec §4.5) */}
+          <div className="mb-4">
+            <label className="font-ui text-xs font-medium mb-1 block" style={{ color: 'var(--text-tertiary)' }}>
+              Appears in
+            </label>
+            <div className="flex gap-2">
+              {[['news', 'News feed'], ['blog', 'Blogs & Newsletters']].map(([value, label]) => (
+                <button
+                  key={value}
+                  onClick={() => setKind(value)}
+                  className="flex-1 px-3 py-2 rounded-lg font-ui text-sm font-medium"
+                  style={{
+                    backgroundColor: kind === value ? 'var(--accent)' : 'var(--bg-surface)',
+                    color: kind === value ? 'var(--accent-contrast)' : 'var(--text-secondary)',
+                    border: '1px solid var(--border)',
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Category selector */}

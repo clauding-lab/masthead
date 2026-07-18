@@ -11,11 +11,14 @@ Owner: solo dev (Adnan, Bangladesh, UTC+6). Vibe-coded — Adnan directs AI agen
 ## Repository structure
 
 ```
-api/          Vercel serverless handlers (feeds, extract, save-url, discover-rss) — prod server surface
+api/          Vercel serverless handlers (feeds, extract, save-url, discover-rss, cron/poll) — prod server surface
 server.js     Local Hono dev server — mirrors api/ for `npm run dev`; imports the SAME lib/ modules
 lib/          Shared server-side modules used by BOTH api/ and server.js (so dev/prod can't drift):
               urlGuard (SSRF), httpGuards (CORS + clientIp), rateLimit, sanitizeServer,
-              feedParser, extractor, sources.json (source registry). *.test.js colocated.
+              feedParser, extractor, sources.json (source registry), articleId (shared identity,
+              also browser-imported), feedService (store-aware reads), articlesRepo/articlesWrite
+              (Supabase read/write split), supabaseRead/supabaseAdmin (anon vs service-role clients),
+              pollRunner + cronAuth (cron poller). *.test.js colocated.
 src/          React app
   components/ Presentational UI (cards, tabs, modals, bars)
   pages/      Route screens (Feed, Reader, Onboarding, Favorites, History, Settings)
@@ -35,15 +38,15 @@ docs/superpowers/      specs + plans (e.g. the Phase 1 Harden spec/plan)
 | Dev loop (API + frontend together) | `npm run dev` |
 | Frontend only | `npm run dev:frontend` |
 | Local API server only | `npm run dev:api` |
-| Build for release | `npm run build` |
-| Unit tests (vitest, 68 tests) | `npm test` |
+| Build for release | `npm run build` (includes `scripts/check-bundle.mjs` service-role leak scan) |
+| Unit tests (vitest, 148 tests incl. `api/**`) | `npm test` |
 | Tests, watch mode | `npm run test:watch` |
-| Lint | `npx eslint src lib api server.js` |
+| Lint | `npx eslint src lib api server.js scripts` |
 | Preview production build | `npm run preview` |
 
 Gotchas:
 - `npm run dev` uses `concurrently` to run `node server.js` (the API) and `vite` (the frontend) side by side. The frontend talks to the local API; in prod the same routes are Vercel functions.
-- **Lint currently exits 1** on exactly 3 pre-existing `react-hooks/set-state-in-effect` errors in untouched components (`PageTransition`, `FavoritesPage`, `HistoryPage`). That is the known baseline — new work must add **zero** new errors, but the non-zero exit itself is not a regression. Fixing those 3 is behaviour-risky and out of scope unless explicitly asked.
+- **Lint currently exits 1** on exactly 3 pre-existing `react-hooks/set-state-in-effect` errors in untouched components (`PageTransition`, `SavedPage`, `HistoryPage`). That is the known baseline — new work must add **zero** new errors, but the non-zero exit itself is not a regression. Fixing those 3 is behaviour-risky and out of scope unless explicitly asked.
 
 ## Release flow
 
@@ -64,6 +67,8 @@ No CI workflows yet (`.github/workflows/` does not exist). Release = **merge to 
 - **Two sanitisation layers by design:** the server sanitises extracted HTML with `sanitize-html` (`lib/sanitizeServer.js`); the client re-sanitises at render with DOMPurify (`src/lib/sanitize.js`). Keep both — defence in depth.
 - **Local-first data:** the client persists to IndexedDB via `src/lib/db.js` (`idb`) and syncs to Supabase via `src/lib/sync.js` only when signed in. Storage is consent-aware. Don't duplicate server state into stores needlessly.
 - **State:** Zustand stores in `src/stores/`. **Source registry:** `lib/sources.json`.
+- **Article identity is single-sourced in `lib/articleId.js`** (pure JS, 16-hex, canonicalized-URL hash) — used by `feedParser`, `extractor`, the cron poller, AND the browser (IndexedDB). Never re-derive ids elsewhere; feed-item identity falls back link → guid → title, so pass a caller-supplied id through save paths rather than re-hashing a possibly-empty url.
+- **Saves go through `src/lib/library.js#saveArticle`** (paste / share-target / heart alike): local-first IndexedDB, then cloud upsert under the user's own JWT to `user_saved_articles`. Deletes are `deleted_at` tombstones, never row deletes; shell (body-less) cloud upserts must stay metadata-only.
 
 ## Known landmines (read before touching these areas)
 
@@ -77,6 +82,10 @@ No CI workflows yet (`.github/workflows/` does not exist). Release = **merge to 
 8. **`feedParser` returns `{ headlines, stats }`**, not a bare array (a Harden-era breaking change; all 4 consumers were updated). A new consumer expecting an array will break.
 9. **SPA rewrite in `vercel.json`** routes everything except `/api/*` to `index.html`. A new *non-SPA* top-level path needs an explicit rewrite exception or it just serves the app shell.
 10. **This is a PUBLIC repo.** Commit messages, PR bodies, and issues must NOT narrate currently-open production vulnerabilities or exploitation windows ("hole open until X deploys"). Describe hardening by what it enforces, neutrally. (A PR body was classifier-blocked for this — see AGENT_LEARNINGS 2026-07-11.)
+11. **supabase-js returns `{ error }` — it never throws on DB errors.** A `try/catch` around an `await supabase...upsert()` catches nothing; you MUST inspect the returned `error`. Worse, a batch (array) upsert is ONE SQL statement: a single row violating a CHECK/NOT NULL aborts EVERY row in the batch, silently if the error is discarded. Pre-filter rows that can violate constraints (see `isCloudSyncable` in `src/lib/sync.js`) and always check `error`. (Review-caught HIGH, 2026-07-18 — one link-less item would have stranded a user's whole cloud library forever.)
+12. **The Supabase project is on the OLD auto-grant default-privilege regime** — `pg_default_acl` grants `anon`/`authenticated` full privileges on every new table at CREATE. Every new-table migration MUST include explicit `revoke all ... from public, anon, authenticated` before its grants; RLS policies alone do not remove the grants. Follow `20260718_create_articles.sql` / `20260719_create_user_saved_articles.sql` verbatim as the pattern (verified against prod 2026-07-18). Extends landmine 5, which covers the same trap for functions.
+13. **Retiring a table = TWO migrations, not one.** Create-and-copy before the app deploy; `drop` only in a second migration applied after the new deploy is live-verified. The currently-deployed app keeps querying the old table until the deploy completes — dropping early silently breaks its writes (supabase-js swallows the error per landmine 11). Pattern: `20260719_create_user_saved_articles.sql` + `20260719_drop_user_favorites.sql` (2026-07-18).
+14. **Prod DDL cannot be agent-run.** The Claude Code permission classifier blocks `supabase db query --linked` DDL regardless of owner approval in chat. Standing pattern: the agent stages the migration file and enumerates it in the pre-flight; the OWNER executes `! supabase db query --linked -f supabase/migrations/<file>` in-session; the agent then verifies via read-only queries (`to_regclass`, grants/policies, live REST probes). Never assume a pasted command executed — verify with a read (a pasted command once arrived as chat text and never ran, 2026-07-18).
 
 ## Communication & timezone
 

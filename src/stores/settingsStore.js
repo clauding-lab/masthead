@@ -117,14 +117,6 @@ const useSettingsStore = create((set, get) => ({
     });
   },
 
-  getEffectiveSources: () => {
-    const { selectedSourceIds, customSources } = get();
-    const idSet = new Set(selectedSourceIds);
-    const defaults = sourcesData.sources.filter((s) => idSet.has(s.id));
-    const custom = customSources.filter((s) => idSet.has(s.id));
-    return [...defaults, ...custom];
-  },
-
   getEffectiveSourcesByKind: (kind) => {
     const { selectedSourceIds, customSources } = get();
     const idSet = new Set(selectedSourceIds);

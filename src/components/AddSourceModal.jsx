@@ -106,10 +106,13 @@ export default function AddSourceModal({ onAdd, onClose }) {
             <label className="font-ui text-xs font-medium mb-1 block" style={{ color: 'var(--text-tertiary)' }}>
               Appears in
             </label>
-            <div className="flex gap-2">
+            <div className="flex gap-2" role="radiogroup" aria-label="Appears in">
               {[['news', 'News feed'], ['blog', 'Blogs & Newsletters']].map(([value, label]) => (
                 <button
                   key={value}
+                  type="button"
+                  role="radio"
+                  aria-checked={kind === value}
                   onClick={() => setKind(value)}
                   className="flex-1 px-3 py-2 rounded-lg font-ui text-sm font-medium"
                   style={{

@@ -10,6 +10,7 @@ import Icon from '../components/ui/Icon';
 import Tag from '../components/ui/Tag';
 import { addToHistory, getFavorite } from '../lib/db';
 import { pushHistoryEntry } from '../lib/sync';
+import { resolveReaderSource, attachBodyToSaved } from '../lib/library';
 import { formatDate, formatReadingTime } from '../lib/utils';
 import useSwipeBack from '../hooks/useSwipeBack';
 import { sanitizeArticleHtml } from '../lib/sanitize';
@@ -50,10 +51,17 @@ export default function ReaderPage() {
 
   useEffect(() => {
     if (fromFavorites && id) {
-      // Load from IndexedDB if coming from favorites
+      // Saved item: branch on CONTENT-presence, not record-presence — a shell
+      // (pending/failed/cloud-pulled) must fall back to live extraction.
       getFavorite(id).then((saved) => {
-        if (saved) {
+        const effectiveUrl = saved?.url || url;
+        const mode = resolveReaderSource(saved, effectiveUrl);
+        if (mode === 'stored') {
           setArticle(saved);
+        } else if (mode === 'live') {
+          fetchArticle(effectiveUrl, sourceId ?? saved?.sourceId);
+        } else if (mode === 'shell') {
+          setArticle(saved); // URL-less shell — terminal card below
         } else if (url) {
           fetchArticle(url, sourceId);
         }
@@ -63,6 +71,14 @@ export default function ReaderPage() {
     }
     return () => clearArticle();
   }, [url, id]);
+
+  // A live-fetched body for a saved shell gets attached so the item is
+  // offline-readable from then on (extractedAt only exists on live extractions).
+  useEffect(() => {
+    if (fromFavorites && id && article?.content && article.extractedAt) {
+      attachBodyToSaved(id, article).catch(() => {});
+    }
+  }, [article, fromFavorites, id]);
 
   // Auto-mark as read in history
   useEffect(() => {
@@ -241,15 +257,17 @@ export default function ReaderPage() {
           ) : (
             <div className="text-center py-8" style={{ color: 'var(--text-tertiary)' }}>
               <p className="font-ui text-sm">Could not extract article content.</p>
-              <a
-                href={url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-block mt-3 px-4 py-2 rounded-lg font-ui text-sm"
-                style={{ backgroundColor: 'var(--accent)', color: 'var(--accent-contrast)' }}
-              >
-                Read on original site
-              </a>
+              {(article.url || url) && (
+                <a
+                  href={article.url || url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-block mt-3 px-4 py-2 rounded-lg font-ui text-sm"
+                  style={{ backgroundColor: 'var(--accent)', color: 'var(--accent-contrast)' }}
+                >
+                  Read on original site
+                </a>
+              )}
             </div>
           )}
         </article>

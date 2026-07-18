@@ -1,17 +1,20 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { getAllFavorites, removeFavorite } from '../lib/db';
+import { useLocation } from 'react-router-dom';
+import { getAllFavorites } from '../lib/db';
+import { deleteSaved, retrySave } from '../lib/library';
 import SavedArticleCard from '../components/SavedArticleCard';
+import PasteSaveBar from '../components/PasteSaveBar';
 import EmptyState from '../components/EmptyState';
 import Surface from '../components/ui/Surface';
 import Icon from '../components/ui/Icon';
 
-export default function FavoritesPage() {
+export default function SavedPage() {
   const [favorites, setFavorites] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const location = useLocation();
 
   const loadFavorites = useCallback(async () => {
-    setLoading(true);
     const items = await getAllFavorites();
     setFavorites(items);
     setLoading(false);
@@ -21,9 +24,23 @@ export default function FavoritesPage() {
     loadFavorites();
   }, [loadFavorites]);
 
+  // A share-target save may still be draining when we land here (spec §5).
+  useEffect(() => {
+    if (location.state?.sharedSave) {
+      const t = setTimeout(loadFavorites, 1500);
+      return () => clearTimeout(t);
+    }
+  }, [location.state, loadFavorites]);
+
   const handleRemove = async (id) => {
-    await removeFavorite(id);
+    const item = favorites.find((a) => a.id === id);
+    await deleteSaved({ id, url: item?.url });
     setFavorites((prev) => prev.filter((a) => a.id !== id));
+  };
+
+  const handleRetry = async (id) => {
+    await retrySave(id);
+    loadFavorites();
   };
 
   const filtered = useMemo(() => {
@@ -52,25 +69,23 @@ export default function FavoritesPage() {
     );
   }
 
-  if (favorites.length === 0) {
-    return (
-      <EmptyState
-        title="No saved articles"
-        message="Tap the heart icon on any article to save it for offline reading."
-      />
-    );
-  }
-
   return (
     <div>
       <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--divider)' }}>
         <h1 className="font-display text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
-          Favorites
+          Saved
         </h1>
         <p className="font-ui text-xs mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
           {favorites.length} article{favorites.length !== 1 ? 's' : ''} saved
         </p>
       </div>
+
+      <PasteSaveBar onSaved={loadFavorites} />
+      {location.state?.saveError && (
+        <p className="font-ui text-xs px-4 py-2" style={{ color: 'var(--danger, #B3261E)' }}>
+          {location.state.saveError}
+        </p>
+      )}
 
       {/* Search bar */}
       {favorites.length > 1 && (
@@ -98,7 +113,12 @@ export default function FavoritesPage() {
         </div>
       )}
 
-      {filtered.length === 0 ? (
+      {favorites.length === 0 ? (
+        <EmptyState
+          title="Nothing saved yet"
+          message="Paste a link above, share a page to Masthead, or tap the heart on any article."
+        />
+      ) : filtered.length === 0 ? (
         <div className="px-4 py-12 text-center">
           <p className="font-ui text-sm" style={{ color: 'var(--text-tertiary)' }}>
             No articles matching "{search}"
@@ -110,6 +130,7 @@ export default function FavoritesPage() {
             key={article.id}
             article={article}
             onRemove={handleRemove}
+            onRetry={handleRetry}
           />
         ))
       )}

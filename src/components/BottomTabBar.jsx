@@ -3,7 +3,7 @@ import Icon from './ui/Icon';
 
 const tabs = [
   { to: '/', label: 'Feed', icon: 'feed' },
-  { to: '/favorites', label: 'Favorites', icon: 'bookmark' },
+  { to: '/favorites', label: 'Saved', icon: 'bookmark' },
   { to: '/history', label: 'History', icon: 'history' },
   { to: '/settings', label: 'Settings', icon: 'settings' },
 ];

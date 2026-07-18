@@ -7,13 +7,15 @@ import PageTransition from './components/PageTransition';
 import ErrorBoundary from './components/ErrorBoundary';
 import FeedPage from './pages/FeedPage';
 import ReaderPage from './pages/ReaderPage';
-import FavoritesPage from './pages/FavoritesPage';
+import SavedPage from './pages/SavedPage';
+import SavePage from './pages/SavePage';
 import HistoryPage from './pages/HistoryPage';
 import SettingsPage from './pages/SettingsPage';
 import OnboardingPage from './pages/OnboardingPage';
 import useFeedStore from './stores/feedStore';
 import useSettingsStore from './stores/settingsStore';
 import useAuthStore from './stores/authStore';
+import { processPendingSaves } from './lib/library';
 
 function FeedLayout() {
   const { fetchedAt, isLoading, selectedCategory, setCategory, refresh } = useFeedStore();
@@ -49,6 +51,15 @@ export default function App() {
     initAuth();
   }, []);
 
+  // Drain share-target URLs stashed while the app was gated (spec §5).
+  useEffect(() => {
+    if (isAuthInitialized && (onboarded || user)) {
+      processPendingSaves().catch(() => {});
+    }
+  }, [isAuthInitialized, onboarded, user]);
+
+  const isShareTarget = window.location.pathname === '/save';
+
   // Show nothing until auth state is known
   if (!isAuthInitialized) {
     return (
@@ -60,8 +71,9 @@ export default function App() {
     );
   }
 
-  // Show onboarding for first-time visitors who aren't signed in
-  if (!onboarded && !user) {
+  // Show onboarding for first-time visitors who aren't signed in — but never
+  // swallow a share-target navigation: /save stashes first (spec §5).
+  if (!onboarded && !user && !isShareTarget) {
     return <OnboardingPage />;
   }
 
@@ -72,7 +84,8 @@ export default function App() {
           <Routes>
             <Route path="/" element={<FeedLayout />} />
             <Route path="/article/:id" element={<ErrorBoundary><ReaderPage /></ErrorBoundary>} />
-            <Route path="/favorites" element={<FavoritesPage />} />
+            <Route path="/favorites" element={<SavedPage />} />
+            <Route path="/save" element={<SavePage />} />
             <Route path="/history" element={<HistoryPage />} />
             <Route path="/settings" element={<SettingsPage />} />
           </Routes>

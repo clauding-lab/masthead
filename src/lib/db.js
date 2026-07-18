@@ -90,6 +90,15 @@ export async function isFavorited(id) {
   return !!article?.isFavorite;
 }
 
+export async function patchSavedArticle(id, patch) {
+  const db = await getDB();
+  const existing = await db.get('articles', id);
+  if (!existing) return null;
+  const updated = { ...existing, ...patch, updatedAtLocal: new Date().toISOString() };
+  await db.put('articles', updated);
+  return updated;
+}
+
 // === History ===
 
 export async function addToHistory(headline) {

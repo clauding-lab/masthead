@@ -7,7 +7,7 @@
     "dev": "concurrently \"npm run dev:api\" \"npm run dev:frontend\"",
     "dev:frontend": "vite",
     "dev:api": "node server.js",
-    "build": "vite build",
+    "build": "vite build && node scripts/check-bundle.mjs",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest"

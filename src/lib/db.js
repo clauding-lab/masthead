@@ -1,14 +1,15 @@
 import { openDB } from 'idb';
+import { articleId } from '../../lib/articleId.js';
 
 const DB_NAME = 'masthead';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 let dbPromise;
 
 function getDB() {
   if (!dbPromise) {
     dbPromise = openDB(DB_NAME, DB_VERSION, {
-      upgrade(db) {
+      async upgrade(db, oldVersion, newVersion, tx) {
         // Saved articles (favorites)
         if (!db.objectStoreNames.contains('articles')) {
           const articleStore = db.createObjectStore('articles', { keyPath: 'id' });
@@ -26,6 +27,23 @@ function getDB() {
         // Pending URLs from Siri Shortcut
         if (!db.objectStoreNames.contains('pending')) {
           db.createObjectStore('pending', { keyPath: 'url' });
+        }
+
+        // v2: one-time re-key of device-local records to the shared articleId
+        // (2B spec D4) — without this, pre-2B favourites orphan when list ids
+        // change scheme. Records whose url yields no id keep their old key.
+        // Only IDB requests on the open versionchange tx may be awaited here.
+        if (oldVersion >= 1 && oldVersion < 2) {
+          for (const name of ['articles', 'history']) {
+            const store = tx.objectStore(name);
+            const records = await store.getAll();
+            for (const record of records) {
+              const newId = articleId(record.url);
+              if (!newId || newId === record.id) continue;
+              await store.delete(record.id);
+              await store.put({ ...record, id: newId });
+            }
+          }
         }
       },
     });

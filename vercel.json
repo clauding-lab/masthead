@@ -1,4 +1,5 @@
 {
+  "regions": ["bom1"],
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/$1" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
@@ -19,10 +20,12 @@
       ]
     }
   ],
+  "crons": [{ "path": "/api/cron/poll", "schedule": "*/20 * * * *" }],
   "functions": {
     "api/feeds.mjs": { "maxDuration": 30 },
     "api/extract.mjs": { "maxDuration": 30 },
     "api/save-url.mjs": { "maxDuration": 15 },
-    "api/discover-rss.mjs": { "maxDuration": 15 }
+    "api/discover-rss.mjs": { "maxDuration": 15 },
+    "api/cron/poll.mjs": { "maxDuration": 60 }
   }
 }

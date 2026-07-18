@@ -1,44 +1,21 @@
 import { serve } from '@hono/node-server';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
-import { fetchAllFeeds } from './lib/feedParser.js';
 import { extractArticle } from './lib/extractor.js';
-import { createRequire } from 'module';
-
-const require = createRequire(import.meta.url);
-const sources = require('./lib/sources.json');
+import { getHeadlinesForSources, getCatalogHeadlines } from './lib/feedService.js';
 
 const app = new Hono();
 app.use('/*', cors());
 
-// Simple in-memory cache
-let cache = { data: null, fetchedAt: null, key: null };
-const CACHE_TTL = 5 * 60 * 1000;
-
 app.get('/api/feeds', async (c) => {
   const category = c.req.query('category') || null;
   const source = c.req.query('source') || null;
-  const cacheKey = `${category || 'all'}-${source || 'all'}`;
-
-  if (
-    cache.data &&
-    cache.key === cacheKey &&
-    cache.fetchedAt &&
-    Date.now() - new Date(cache.fetchedAt).getTime() < CACHE_TTL
-  ) {
-    return c.json({ headlines: cache.data, fetchedAt: cache.fetchedAt, cached: true });
-  }
-
   try {
-    const { headlines, stats } = await fetchAllFeeds(sources.sources, { category, source });
-    if (stats.total > 0 && stats.succeeded === 0) {
-      return c.json({ error: 'Feeds temporarily unavailable', headlines: [], feedStats: stats }, 503);
+    const { headlines, feedStats, status } = await getCatalogHeadlines({ category, source });
+    if (status !== 200) {
+      return c.json({ error: 'Feeds temporarily unavailable', headlines: [], feedStats }, 503);
     }
-    const fetchedAt = new Date().toISOString();
-    if (stats.succeeded > 0) {
-      cache = { data: headlines, fetchedAt, key: cacheKey };
-    }
-    return c.json({ headlines, fetchedAt, cached: false, feedStats: stats });
+    return c.json({ headlines, fetchedAt: new Date().toISOString(), cached: false, feedStats });
   } catch (err) {
     console.error('Feed fetch error:', err);
     return c.json({ error: 'Failed to fetch feeds', headlines: [], fetchedAt: null }, 500);
@@ -72,13 +49,15 @@ app.post('/api/feeds', async (c) => {
   if (!customSources || !Array.isArray(customSources) || customSources.length === 0) {
     return c.json({ error: 'sources array is required' }, 400);
   }
+  if (customSources.length > 30) {
+    return c.json({ error: 'Too many sources (max 30)' }, 400);
+  }
   try {
-    const { headlines, stats } = await fetchAllFeeds(customSources, { category });
-    if (stats.total > 0 && stats.succeeded === 0) {
-      return c.json({ error: 'Feeds temporarily unavailable', headlines: [], feedStats: stats }, 503);
+    const { headlines, feedStats, status } = await getHeadlinesForSources(customSources, { category: category || null });
+    if (status !== 200) {
+      return c.json({ error: 'Feeds temporarily unavailable', headlines: [], feedStats }, 503);
     }
-    const fetchedAt = new Date().toISOString();
-    return c.json({ headlines, fetchedAt, cached: false, feedStats: stats });
+    return c.json({ headlines, fetchedAt: new Date().toISOString(), cached: false, feedStats });
   } catch (err) {
     console.error('Feed fetch error:', err);
     return c.json({ error: 'Failed to fetch feeds', headlines: [], fetchedAt: null }, 500);

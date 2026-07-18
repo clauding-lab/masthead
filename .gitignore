@@ -24,3 +24,6 @@ dist-ssr
 *.sw?
 .vercel
 .aider*
+
+# Supabase CLI link state
+supabase/.temp/

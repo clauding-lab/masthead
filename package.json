@@ -10,7 +10,8 @@
     "build": "vite build && node scripts/check-bundle.mjs",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "verify-catalog": "node scripts/verify-catalog.mjs"
   },
   "dependencies": {
     "@hono/node-server": "^1.19.11",

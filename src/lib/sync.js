@@ -94,14 +94,6 @@ export async function removeSaved(userId, { id, url }) {
   }
 }
 
-// Interim back-compat until FavoriteToggle is rewired in this slice's Task 5.
-export async function pushFavorite(userId, article) {
-  return pushSaved(userId, article);
-}
-export async function removeFavoriteRemote(userId, articleId) {
-  return removeSaved(userId, { id: articleId, url: '' });
-}
-
 export async function syncOnSignIn(userId) {
   if (!supabase || !userId) return;
 

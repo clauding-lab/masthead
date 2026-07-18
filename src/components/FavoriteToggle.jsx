@@ -1,12 +1,10 @@
 import { useState, useEffect } from 'react';
-import { saveFavorite, removeFavorite, isFavorited } from '../lib/db';
-import { pushFavorite, removeFavoriteRemote } from '../lib/sync';
-import useAuthStore from '../stores/authStore';
+import { isFavorited } from '../lib/db';
+import { saveArticle, deleteSaved } from '../lib/library';
 
 export default function FavoriteToggle({ article }) {
   const [favorited, setFavorited] = useState(false);
   const [saving, setSaving] = useState(false);
-  const user = useAuthStore((s) => s.user);
 
   useEffect(() => {
     if (article?.id) {
@@ -19,13 +17,17 @@ export default function FavoriteToggle({ article }) {
     setSaving(true);
     try {
       if (favorited) {
-        await removeFavorite(article.id);
+        await deleteSaved({ id: article.id, url: article.url });
         setFavorited(false);
-        if (user) removeFavoriteRemote(user.id, article.id);
       } else {
-        await saveFavorite(article);
+        await saveArticle({
+          url: article.url,
+          id: article.id,
+          sourceMeta: article,
+          savedVia: 'feed',
+          preloadedArticle: article.content || article.textContent ? article : null,
+        });
         setFavorited(true);
-        if (user) pushFavorite(user.id, article);
       }
     } catch (err) {
       console.error('Failed to toggle favorite:', err);

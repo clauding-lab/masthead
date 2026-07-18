@@ -3,7 +3,7 @@ import Tag from './ui/Tag';
 import Icon from './ui/Icon';
 import { timeAgo } from '../lib/utils';
 
-export default function SavedArticleCard({ article, onRemove }) {
+export default function SavedArticleCard({ article, onRemove, onRetry }) {
   return (
     <div
       className="flex gap-3 px-4 py-3"
@@ -26,12 +26,27 @@ export default function SavedArticleCard({ article, onRemove }) {
           {article.sourceShortName && (
             <Tag color={article.sourceColor} sourceName={article.sourceShortName} />
           )}
-          <span
-            className="inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded"
-            style={{ backgroundColor: 'var(--accent-soft)', color: 'var(--accent)' }}
-          >
-            Saved offline
-          </span>
+          {article.content ? (
+            <span
+              className="inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded"
+              style={{ backgroundColor: 'var(--accent-soft)', color: 'var(--accent)' }}
+            >
+              Saved offline
+            </span>
+          ) : article.pendingBody ? (
+            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded" style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--text-tertiary)' }}>
+              Fetching…
+            </span>
+          ) : article.bodyFailed ? (
+            <button
+              type="button"
+              onClick={(e) => { e.preventDefault(); onRetry?.(article.id); }}
+              className="text-[10px] font-mono px-1.5 py-0.5 rounded"
+              style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--danger, #B3261E)' }}
+            >
+              Couldn't fetch — retry
+            </button>
+          ) : null}
         </div>
         <h2
           className="font-display text-[15px] leading-snug font-semibold mb-1.5 line-clamp-2"
@@ -66,7 +81,7 @@ export default function SavedArticleCard({ article, onRemove }) {
           onClick={() => onRemove(article.id)}
           className="flex-shrink-0 self-start p-1.5 rounded"
           style={{ color: 'var(--text-tertiary)' }}
-          aria-label="Remove from favorites"
+          aria-label="Remove from saved"
         >
           <Icon name="close" size={16} />
         </button>

@@ -7,7 +7,7 @@ import PageTransition from './components/PageTransition';
 import ErrorBoundary from './components/ErrorBoundary';
 import FeedPage from './pages/FeedPage';
 import ReaderPage from './pages/ReaderPage';
-import FavoritesPage from './pages/FavoritesPage';
+import SavedPage from './pages/SavedPage';
 import HistoryPage from './pages/HistoryPage';
 import SettingsPage from './pages/SettingsPage';
 import OnboardingPage from './pages/OnboardingPage';
@@ -72,7 +72,7 @@ export default function App() {
           <Routes>
             <Route path="/" element={<FeedLayout />} />
             <Route path="/article/:id" element={<ErrorBoundary><ReaderPage /></ErrorBoundary>} />
-            <Route path="/favorites" element={<FavoritesPage />} />
+            <Route path="/favorites" element={<SavedPage />} />
             <Route path="/history" element={<HistoryPage />} />
             <Route path="/settings" element={<SettingsPage />} />
           </Routes>

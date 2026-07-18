@@ -17,6 +17,11 @@ export default defineConfig({
         display: 'standalone',
         scope: '/',
         start_url: '/',
+        share_target: {
+          action: '/save',
+          method: 'GET',
+          params: { url: 'url', text: 'text', title: 'title' },
+        },
         icons: [
           {
             src: '/icons/icon-192.png',

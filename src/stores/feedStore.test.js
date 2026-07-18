@@ -9,7 +9,7 @@ vi.mock('./settingsStore', () => ({
   default: { getState: () => ({ getEffectiveSourcesByKind: () => [] }) },
 }));
 
-import { fetchHeadlines } from '../lib/api';
+import { fetchHeadlines, fetchHeadlinesWithSources } from '../lib/api';
 import useFeedStore, { useBlogsFeedStore, selectNewsRequest, selectBlogsRequest } from './feedStore';
 
 describe('fetchFeeds sequencing', () => {
@@ -45,6 +45,24 @@ describe('store factory (2D spec §4.2)', () => {
     useBlogsFeedStore.getState().setCategory('economics');
     expect(useFeedStore.getState().selectedCategory).toBeNull();
     expect(useBlogsFeedStore.getState().selectedCategory).toBe('economics');
+  });
+
+  it('a kind-scoped surface with zero enabled sources and fallbackToCatalog:false makes no network call (2D spec §4.3)', async () => {
+    fetchHeadlines.mockReset();
+    fetchHeadlinesWithSources.mockReset();
+    useBlogsFeedStore.setState({
+      headlines: [], selectedCategory: null, fetchedAt: null, isLoading: false, error: null,
+    });
+
+    await useBlogsFeedStore.getState().fetchFeeds();
+
+    expect(fetchHeadlines).not.toHaveBeenCalled();
+    expect(fetchHeadlinesWithSources).not.toHaveBeenCalled();
+    const state = useBlogsFeedStore.getState();
+    expect(state.headlines).toEqual([]);
+    expect(state.isLoading).toBe(false);
+    expect(state.fetchedAt).toEqual(expect.any(String));
+    expect(state.fetchedAt).toBeTruthy();
   });
 });
 

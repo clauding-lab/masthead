@@ -76,6 +76,14 @@ export default async function handler(req, res) {
         await assertPublicUrl(cleanUrl);
         ({ title, finalUrl } = await validateFeedUrl(cleanUrl));
       } catch {
+        // Host-only, never the full url (it may embed a reader token) — and
+        // registrableDomain itself can throw on a malformed url, so that
+        // must never escape and swallow the 422 (final-review Important 3).
+        let host = 'unparseable-host';
+        try {
+          host = registrableDomain(cleanUrl);
+        } catch {}
+        console.error('[premium-feeds] validate failed:', host);
         return res.status(422).json(GENERIC_VALIDATION);
       }
 

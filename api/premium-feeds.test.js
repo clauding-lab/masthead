@@ -219,6 +219,44 @@ describe('POST /api/premium-feeds', () => {
       }
       expect(new Set(bodies).size).toBe(1);
     });
+
+    // Important 3 (final review): a validation failure must not vanish
+    // silently — but the log line is host-only, never the full url or token.
+    it('logs the registrable domain on a validate failure, never the full url/token, while the 422 body stays byte-identical', async () => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      vi.mocked(validateFeedUrl).mockRejectedValue(new Error('Address not allowed'));
+      const res = fakeRes();
+
+      await handler(req('POST', { body: { url: SECRET_URL, kind: 'news' } }), res);
+
+      expect(res.statusCode).toBe(422);
+      expect(res.body).toEqual({ error: 'Could not validate feed URL' });
+
+      const call = consoleSpy.mock.calls.find(([prefix]) => prefix === '[premium-feeds] validate failed:');
+      expect(call).toBeTruthy();
+      const [, loggedHost] = call;
+      expect(typeof loggedHost).toBe('string');
+      expect(loggedHost).toContain('example.com');
+      expect(loggedHost).not.toContain(SECRET_URL);
+      expect(loggedHost).not.toContain('secrettoken123abc');
+
+      consoleSpy.mockRestore();
+    });
+
+    it('a malformed url that still passes the https:// check falls back to a static host string instead of throwing out of the handler', async () => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      vi.mocked(validateFeedUrl).mockRejectedValue(new Error('parse failure'));
+      const res = fakeRes();
+
+      await handler(req('POST', { body: { url: 'https://', kind: 'news' } }), res);
+
+      expect(res.statusCode).toBe(422);
+      expect(res.body).toEqual({ error: 'Could not validate feed URL' });
+      const call = consoleSpy.mock.calls.find(([prefix]) => prefix === '[premium-feeds] validate failed:');
+      expect(call).toEqual(['[premium-feeds] validate failed:', 'unparseable-host']);
+
+      consoleSpy.mockRestore();
+    });
   });
 
   it('cheap-before-network order: countFeeds=5 blocks validateFeedUrl from ever running', async () => {

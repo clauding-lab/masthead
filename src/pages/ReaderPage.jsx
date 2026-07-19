@@ -44,15 +44,23 @@ export default function ReaderPage() {
   const historyRecorded = useRef(false);
   const pageRef = useRef(null);
   const progressBarRef = useRef(null);
+  // Tracks the premium fetch in flight (if any) so the error retry button
+  // below can retry the SAME way the initial fetch was attempted — location
+  // .state alone isn't enough, since a Saved-page reopen (fromFavorites)
+  // never carries isPremium/premiumFeedId in state; that flag only lives on
+  // the saved DB record (2E fix wave 1).
+  const premiumRetryRef = useRef(null);
   useSwipeBack(pageRef);
 
   const { url, sourceId, sourceName, sourceShortName, sourceColor, fromFavorites, isPremium, hasBody, premiumFeedId } =
     location.state || {};
 
   useEffect(() => {
+    premiumRetryRef.current = null;
     if (isPremium && hasBody && premiumFeedId && id) {
       // Premium: body comes from the feed via the authed endpoint — the
       // extractor would hit the paywall and return a teaser (2E §5.3).
+      premiumRetryRef.current = { feedId: premiumFeedId, articleId: id };
       fetchPremiumArticle(premiumFeedId, id);
     } else if (fromFavorites && id) {
       // Saved item: branch on CONTENT-presence, not record-presence — a shell
@@ -62,6 +70,13 @@ export default function ReaderPage() {
         const mode = resolveReaderSource(saved, effectiveUrl);
         if (mode === 'stored') {
           setArticle(saved);
+        } else if (mode === 'premium') {
+          // A premium bodyFailed shell reopened from Saved — refetch via the
+          // authed endpoint, never the extractor (2E fix wave 1). Rendered
+          // for this view only; the saved record is upgraded solely by the
+          // explicit Retry action (retrySave), not by passively reopening.
+          premiumRetryRef.current = { feedId: saved.sourceId, articleId: id };
+          fetchPremiumArticle(saved.sourceId, id);
         } else if (mode === 'live') {
           fetchArticle(effectiveUrl, sourceId ?? saved?.sourceId);
         } else if (mode === 'shell') {
@@ -203,8 +218,8 @@ export default function ReaderPage() {
           message={error}
           action="Try Again"
           onAction={() =>
-            isPremium && hasBody && premiumFeedId && id
-              ? fetchPremiumArticle(premiumFeedId, id)
+            premiumRetryRef.current
+              ? fetchPremiumArticle(premiumRetryRef.current.feedId, premiumRetryRef.current.articleId)
               : fetchArticle(url, sourceId)
           }
         />

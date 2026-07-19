@@ -4,7 +4,17 @@ vi.mock('../lib/feedService.js', () => ({
   getHeadlinesForSources: vi.fn(),
   getCatalogHeadlines: vi.fn(),
 }));
+vi.mock('../lib/authVerify.js', () => {
+  class AuthError extends Error {
+    constructor(message) {
+      super(message);
+      this.name = 'AuthError';
+    }
+  }
+  return { requireUser: vi.fn(), AuthError };
+});
 import { getHeadlinesForSources, getCatalogHeadlines } from '../lib/feedService.js';
+import { requireUser, AuthError } from '../lib/authVerify.js';
 import handler from './feeds.mjs';
 
 function fakeRes() {
@@ -17,13 +27,16 @@ function fakeRes() {
   };
 }
 const SRC = { id: 'daily-star', feedUrl: 'https://x.example/f.xml' };
-function post(body, ip = '10.9.9.9') {
-  return { method: 'POST', url: '/api/feeds', headers: { host: 'test', 'x-forwarded-for': ip }, body };
+function post(body, ip = '10.9.9.9', authHeader) {
+  const headers = { host: 'test', 'x-forwarded-for': ip };
+  if (authHeader) headers.authorization = authHeader;
+  return { method: 'POST', url: '/api/feeds', headers, body };
 }
 
 beforeEach(() => {
   vi.mocked(getHeadlinesForSources).mockReset().mockResolvedValue({ headlines: [], feedStats: { total: 0, succeeded: 0, failed: 0, served: 'store' }, status: 200 });
   vi.mocked(getCatalogHeadlines).mockReset().mockResolvedValue({ headlines: [], feedStats: { total: 0, succeeded: 0, failed: 0, served: 'store' }, status: 200 });
+  vi.mocked(requireUser).mockReset().mockResolvedValue({ userId: 'default-user' });
 });
 
 describe('guard chain preserved (spec §5.2)', () => {
@@ -77,5 +90,77 @@ describe('service wiring', () => {
     await handler({ method: 'GET', url: '/api/feeds?category=tech&source=techcrunch', headers: { host: 'test', 'x-forwarded-for': '10.9.9.4' } }, res);
     expect(res.statusCode).toBe(200);
     expect(getCatalogHeadlines).toHaveBeenCalledWith({ category: 'tech', source: 'techcrunch' });
+  });
+});
+
+describe('premium merge (2E Task 8)', () => {
+  it('(a) sources: [] + premiumIds + valid token → 200, validation relaxed, premium merged in', async () => {
+    vi.mocked(requireUser).mockResolvedValue({ userId: 'user-a' });
+    vi.mocked(getHeadlinesForSources).mockResolvedValue({
+      headlines: [{ id: 'p1', isPremium: true }],
+      feedStats: { total: 1, succeeded: 1, failed: 0, served: 'none' },
+      status: 200,
+      premiumStatus: [{ id: 'x', ok: true }],
+    });
+    const res = fakeRes();
+    await handler(post({ sources: [], premiumIds: ['x'] }, '10.9.9.20', 'Bearer good-token'), res);
+    expect(res.statusCode).toBe(200);
+    expect(getHeadlinesForSources).toHaveBeenCalledWith([], { category: null, premium: { userId: 'user-a', ids: ['x'] } });
+    expect(res.body.premiumStatus).toEqual([{ id: 'x', ok: true }]);
+    expect(res.body.premiumAuthFailed).toBeUndefined();
+  });
+
+  it('(b) sources: [] + no premiumIds → 400 (existing rule holds)', async () => {
+    const res = fakeRes();
+    await handler(post({ sources: [] }, '10.9.9.19'), res);
+    expect(res.statusCode).toBe(400);
+    expect(getHeadlinesForSources).not.toHaveBeenCalled();
+  });
+
+  it('(c) invalid token + premiumIds → 200 with premiumAuthFailed: true, catalog still served, no premium in the service call', async () => {
+    vi.mocked(requireUser).mockRejectedValue(new AuthError('bad token'));
+    vi.mocked(getHeadlinesForSources).mockResolvedValue({
+      headlines: [{ id: 'catalog-1' }],
+      feedStats: { total: 1, succeeded: 1, failed: 0, served: 'store' },
+      status: 200,
+      premiumStatus: [],
+    });
+    const res = fakeRes();
+    await handler(post({ sources: [SRC], premiumIds: ['x'] }, '10.9.9.18', 'Bearer bad-token'), res);
+    expect(res.statusCode).toBe(200);
+    expect(res.body.premiumAuthFailed).toBe(true);
+    expect(res.body.headlines).toEqual([{ id: 'catalog-1' }]);
+    expect(getHeadlinesForSources).toHaveBeenCalledWith([SRC], { category: null });
+  });
+
+  it('(d) premiumIds longer than 10 → not a 400; full list forwarded for the real resolvePremiumSources to slice (see lib/feedService.test.js)', async () => {
+    const ids = Array.from({ length: 15 }, (_, i) => `id-${i}`);
+    vi.mocked(requireUser).mockResolvedValue({ userId: 'user-d' });
+    vi.mocked(getHeadlinesForSources).mockResolvedValue({
+      headlines: [], feedStats: { total: 0, succeeded: 0, failed: 0, served: 'none' }, status: 200, premiumStatus: [],
+    });
+    const res = fakeRes();
+    await handler(post({ sources: [], premiumIds: ids }, '10.9.9.17', 'Bearer good-token'), res);
+    expect(res.statusCode).not.toBe(400);
+    expect(getHeadlinesForSources).toHaveBeenCalledWith([], { category: null, premium: { userId: 'user-d', ids } });
+  });
+
+  it('(e) per-user premium limiter (premium-fetch:${userId} 30/60s) exceeded → premium omitted, catalog still served, never a 429 for the whole feed', async () => {
+    vi.mocked(requireUser).mockResolvedValue({ userId: 'user-e-limit' });
+    vi.mocked(getHeadlinesForSources).mockResolvedValue({
+      headlines: [{ id: 'catalog-1' }],
+      feedStats: { total: 1, succeeded: 1, failed: 0, served: 'store' },
+      status: 200,
+      premiumStatus: [],
+    });
+    let last;
+    for (let i = 0; i < 31; i++) {
+      last = fakeRes();
+      await handler(post({ sources: [SRC], premiumIds: ['x'] }, '10.9.9.16', 'Bearer good-token'), last);
+    }
+    expect(last.statusCode).toBe(200);
+    expect(last.body.premiumStatus).toEqual([]);
+    expect(last.body.premiumAuthFailed).toBeUndefined();
+    expect(getHeadlinesForSources).toHaveBeenLastCalledWith([SRC], { category: null });
   });
 });

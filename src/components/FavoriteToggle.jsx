@@ -20,11 +20,14 @@ export default function FavoriteToggle({ article }) {
         await deleteSaved({ id: article.id, url: article.url });
         setFavorited(false);
       } else {
+        // Premium items always save through the authed body-on-demand
+        // endpoint (2E) — sourceMeta.sourceId carries the premium feed id,
+        // not the article's own extraction source.
         await saveArticle({
           url: article.url,
           id: article.id,
-          sourceMeta: article,
-          savedVia: 'feed',
+          sourceMeta: article.isPremium ? { ...article, sourceId: article.premiumFeedId } : article,
+          savedVia: article.isPremium ? 'premium' : 'feed',
           preloadedArticle: article.content || article.textContent ? article : null,
         });
         setFavorited(true);

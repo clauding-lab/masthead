@@ -128,7 +128,15 @@ export async function saveArticle({ url, id, sourceMeta = {}, savedVia = 'url', 
   });
 
   let body = null;
-  if (preloadedArticle && (preloadedArticle.content || preloadedArticle.textContent)) {
+  if (savedVia === 'premium' && sourceMeta.sourceId) {
+    // Premium: always go through the authed body-on-demand endpoint — the
+    // extractor would hit the paywall and return a teaser (2E §5.3), so
+    // preloadedArticle is intentionally not consulted here. Never throws:
+    // a failed fetch (expired token, network) downgrades to a bodyFailed
+    // shell like every other channel, never a lost save.
+    const { fetchPremiumBody } = await import('./premiumApi');
+    body = await fetchPremiumBody(sourceMeta.sourceId, finalId).catch(() => null);
+  } else if (preloadedArticle && (preloadedArticle.content || preloadedArticle.textContent)) {
     body = preloadedArticle; // heart-from-reader: the app already holds the body
   } else if (/^https?:\/\//i.test(cleanUrl)) {
     body = await extractQueued(cleanUrl, sourceMeta.sourceId, d);

@@ -8,6 +8,11 @@ import {
 import { getFavorite, getAllFavorites, saveFavorite, addPendingUrl, getPendingUrls } from './db.js';
 import { articleId } from '../../lib/articleId.js';
 
+vi.mock('./premiumApi', () => ({
+  fetchPremiumBody: vi.fn(),
+}));
+import { fetchPremiumBody } from './premiumApi';
+
 const BODY = { title: 'Full', byline: 'By A', excerpt: 'ex', content: '<p>body</p>', leadImage: null, wordCount: 9, readingTimeMinutes: 1 };
 const noQueueWait = { spacingMs: 0, backoffMs: 0 };
 const deps = (over = {}) => ({
@@ -101,6 +106,35 @@ describe('saveArticle', () => {
     await saveArticle({ url, savedVia: 'url' }, d);
     const all = await getAllFavorites();
     expect(all.filter((a) => a.url === url)).toHaveLength(1);
+  });
+});
+
+describe('saveArticle: premium body (2E)', () => {
+  it('never calls the extractor and stores the premium content fetched via fetchPremiumBody', async () => {
+    fetchPremiumBody.mockReset().mockResolvedValue({ title: 'P', url: 'https://pub.example/p', content: '<p>premium body</p>' });
+    const d = deps();
+    const record = await saveArticle(
+      { url: 'https://pub.example/p', id: 'premid1234567890', sourceMeta: { sourceId: 'feedA', title: 'Premium Co' }, savedVia: 'premium' },
+      d
+    );
+    expect(d.extract).not.toHaveBeenCalled();
+    expect(fetchPremiumBody).toHaveBeenCalledWith('feedA', 'premid1234567890');
+    expect(record.content).toBe('<p>premium body</p>');
+    expect(record.pendingBody).toBe(false);
+    expect(record.bodyFailed).toBe(false);
+    expect(d.pushSavedFn).toHaveBeenCalledWith('u1', expect.objectContaining({ content: '<p>premium body</p>' }));
+  });
+
+  it('a failed premium body fetch files a bodyFailed shell and never calls the extractor', async () => {
+    fetchPremiumBody.mockReset().mockRejectedValue(new Error('Sign in required'));
+    const d = deps();
+    const record = await saveArticle(
+      { url: 'https://pub.example/q', id: 'premid2234567890', sourceMeta: { sourceId: 'feedA' }, savedVia: 'premium' },
+      d
+    );
+    expect(d.extract).not.toHaveBeenCalled();
+    expect(record.bodyFailed).toBe(true);
+    expect(record.content).toBeUndefined();
   });
 });
 

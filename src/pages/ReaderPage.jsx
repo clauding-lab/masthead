@@ -39,18 +39,22 @@ export default function ReaderPage() {
   const { id } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
-  const { article, isLoading, error, fetchArticle, clearArticle, setArticle } = useArticleStore();
+  const { article, isLoading, error, fetchArticle, fetchPremiumArticle, clearArticle, setArticle } = useArticleStore();
   const fontSize = useSettingsStore((s) => s.fontSize);
   const historyRecorded = useRef(false);
   const pageRef = useRef(null);
   const progressBarRef = useRef(null);
   useSwipeBack(pageRef);
 
-  const { url, sourceId, sourceName, sourceShortName, sourceColor, fromFavorites } =
+  const { url, sourceId, sourceName, sourceShortName, sourceColor, fromFavorites, isPremium, hasBody, premiumFeedId } =
     location.state || {};
 
   useEffect(() => {
-    if (fromFavorites && id) {
+    if (isPremium && hasBody && premiumFeedId && id) {
+      // Premium: body comes from the feed via the authed endpoint — the
+      // extractor would hit the paywall and return a teaser (2E §5.3).
+      fetchPremiumArticle(premiumFeedId, id);
+    } else if (fromFavorites && id) {
       // Saved item: branch on CONTENT-presence, not record-presence — a shell
       // (pending/failed/cloud-pulled) must fall back to live extraction.
       getFavorite(id).then((saved) => {
@@ -157,7 +161,7 @@ export default function ReaderPage() {
             )}
           </div>
           <div className="flex items-center gap-0.5 flex-shrink-0">
-            <FavoriteToggle article={article ? { ...article, sourceId, sourceName, sourceShortName, sourceColor } : null} />
+            <FavoriteToggle article={article ? { ...article, sourceId, sourceName, sourceShortName, sourceColor, isPremium, premiumFeedId } : null} />
             {/* Share button */}
             <Button
               variant="icon"
@@ -198,7 +202,11 @@ export default function ReaderPage() {
           title="Extraction failed"
           message={error}
           action="Try Again"
-          onAction={() => fetchArticle(url, sourceId)}
+          onAction={() =>
+            isPremium && hasBody && premiumFeedId && id
+              ? fetchPremiumArticle(premiumFeedId, id)
+              : fetchArticle(url, sourceId)
+          }
         />
       )}
 

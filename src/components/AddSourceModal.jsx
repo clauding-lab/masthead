@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { discoverRSS } from '../lib/api';
 import { suggestKind } from '../lib/suggestKind';
+import useAuthStore from '../stores/authStore';
+import usePremiumStore from '../stores/premiumStore';
 import Icon from './ui/Icon';
 
 export default function AddSourceModal({ onAdd, onClose }) {
@@ -10,6 +12,13 @@ export default function AddSourceModal({ onAdd, onClose }) {
   const [error, setError] = useState(null);
   const [category, setCategory] = useState('custom');
   const [kind, setKind] = useState('news');
+  const { user } = useAuthStore();
+  const [isPremium, setIsPremium] = useState(false);
+  const [premiumAdded, setPremiumAdded] = useState(null);
+  const [premiumError, setPremiumError] = useState(null);
+  // Anti-autofill (2E §5.1): a fresh random name/id per mount so password
+  // managers and browser autofill can't correlate this field across visits.
+  const premiumFieldName = useRef('url-' + Math.random().toString(36).slice(2)).current;
 
   const handleSearch = async () => {
     if (!url.trim()) return;
@@ -46,6 +55,23 @@ export default function AddSourceModal({ onAdd, onClose }) {
     });
   };
 
+  // Premium submissions bypass `onAdd` entirely — they go straight through
+  // the premium store, which owns server custody of the URL (2E §5.1).
+  const handleAddPremium = async () => {
+    setPremiumError(null);
+    try {
+      const row = await usePremiumStore.getState().addFeed({
+        url: url.trim(),
+        kind,
+        category,
+      });
+      setPremiumAdded(row);
+      setUrl('');
+    } catch (err) {
+      setPremiumError(err.message);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
       {/* Backdrop */}
@@ -72,7 +98,29 @@ export default function AddSourceModal({ onAdd, onClose }) {
         </div>
 
         <div className="px-5 pb-6 overflow-y-auto" style={{ maxHeight: '60vh' }}>
+          {premiumAdded ? (
+            <div className="text-center py-6">
+              <div
+                className="w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-3"
+                style={{ backgroundColor: 'var(--bg-surface)' }}
+              >
+                <Icon name="lock" size={22} aria-label="Premium feed added" style={{ color: 'var(--accent)' }} />
+              </div>
+              <p className="font-ui text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                {premiumAdded.label} · {premiumAdded.hostHint}
+              </p>
+              <button
+                onClick={onClose}
+                className="mt-4 w-full px-4 py-2.5 rounded-lg font-ui text-sm font-medium"
+                style={{ backgroundColor: 'var(--accent)', color: 'var(--accent-contrast)' }}
+              >
+                Done
+              </button>
+            </div>
+          ) : (
+            <>
           {/* URL Input */}
+          {!isPremium && (
           <div className="flex gap-2 mb-4">
             <input
               type="text"
@@ -100,6 +148,57 @@ export default function AddSourceModal({ onAdd, onClose }) {
               {isSearching ? '...' : 'Find'}
             </button>
           </div>
+          )}
+
+          {/* Premium subscriber feed: signed out → sign-in prompt, no submit control (2E §5.1) */}
+          {isPremium && !user && (
+            <div className="mb-4 px-3 py-3 rounded-lg" style={{ backgroundColor: 'var(--bg-surface)' }}>
+              <p className="font-ui text-sm" style={{ color: 'var(--text-primary)' }}>
+                Sign in from Settings to add a premium subscriber feed.
+              </p>
+            </div>
+          )}
+
+          {/* Premium subscriber feed: signed in → hardened, autofill-resistant input (2E §5.1) */}
+          {isPremium && user && (
+            <div className="mb-4">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  autoComplete="off"
+                  name={premiumFieldName}
+                  id={premiumFieldName}
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                  onBlur={() => setKind(suggestKind(url))}
+                  placeholder="Paste your subscriber feed URL (https://…)"
+                  className="flex-1 px-3 py-2.5 rounded-lg font-ui text-sm outline-none"
+                  style={{
+                    backgroundColor: 'var(--bg-surface)',
+                    color: 'var(--text-primary)',
+                    border: '1px solid var(--border)',
+                  }}
+                />
+                <button
+                  onClick={handleAddPremium}
+                  disabled={!url.trim()}
+                  className="px-4 py-2.5 rounded-lg font-ui text-sm font-medium shrink-0"
+                  style={{
+                    backgroundColor: 'var(--accent)',
+                    color: 'var(--accent-contrast)',
+                    opacity: !url.trim() ? 0.5 : 1,
+                  }}
+                >
+                  Add
+                </button>
+              </div>
+              {premiumError && (
+                <p className="font-ui text-xs mt-2" style={{ color: 'var(--accent)' }}>
+                  {premiumError}
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Appears in (2D spec §4.5) */}
           <div className="mb-4">
@@ -127,6 +226,21 @@ export default function AddSourceModal({ onAdd, onClose }) {
             </div>
           </div>
 
+          {/* Premium subscriber feed (2E §5.1) */}
+          <label className="flex items-start gap-2 mb-4 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={isPremium}
+              onChange={(e) => setIsPremium(e.target.checked)}
+              className="mt-0.5"
+            />
+            <span className="font-ui text-xs" style={{ color: 'var(--text-secondary)' }}>
+              <span className="font-medium" style={{ color: 'var(--text-primary)' }}>Premium subscriber feed</span>
+              {' — '}URL contains your personal token: stored securely, never shown again.
+              Treat this link like a password — anyone who has it can read your paid content.
+            </span>
+          </label>
+
           {/* Category selector */}
           <div className="mb-4">
             <label className="font-ui text-xs font-medium mb-1 block" style={{ color: 'var(--text-tertiary)' }}>
@@ -149,68 +263,75 @@ export default function AddSourceModal({ onAdd, onClose }) {
             </select>
           </div>
 
-          {/* Loading */}
-          {isSearching && (
-            <div className="text-center py-8">
-              <div className="inline-block w-6 h-6 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: 'var(--accent)', borderTopColor: 'transparent' }} />
-              <p className="font-ui text-sm mt-3" style={{ color: 'var(--text-secondary)' }}>
-                Searching for RSS feeds...
-              </p>
-            </div>
-          )}
-
-          {/* Error */}
-          {error && (
-            <div className="text-center py-8">
-              <div
-                className="w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-3"
-                style={{ backgroundColor: 'var(--bg-surface)' }}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="10" />
-                  <line x1="15" y1="9" x2="9" y2="15" />
-                  <line x1="9" y1="9" x2="15" y2="15" />
-                </svg>
-              </div>
-              <p className="font-ui text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
-                {error}
-              </p>
-            </div>
-          )}
-
-          {/* Results */}
-          {feeds && feeds.length > 0 && (
-            <div className="space-y-2">
-              <p className="font-ui text-xs font-medium" style={{ color: 'var(--text-tertiary)' }}>
-                {feeds.length} feed{feeds.length > 1 ? 's' : ''} found
-              </p>
-              {feeds.map((feed, i) => (
-                <div
-                  key={i}
-                  className="flex items-center gap-3 p-3 rounded-lg"
-                  style={{ backgroundColor: 'var(--bg-surface)' }}
-                >
-                  <div className="flex-1 min-w-0">
-                    <p className="font-ui text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>
-                      {feed.title}
-                    </p>
-                    <p className="font-mono text-xs truncate" style={{ color: 'var(--text-tertiary)' }}>
-                      {feed.itemCount} articles
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => handleAdd(feed)}
-                    className="px-3 py-1.5 rounded-lg font-ui text-xs font-medium shrink-0"
-                    style={{ backgroundColor: 'var(--accent)', color: 'var(--accent-contrast)' }}
-                  >
-                    Add
-                  </button>
+          {!isPremium && (
+            <>
+              {/* Loading */}
+              {isSearching && (
+                <div className="text-center py-8">
+                  <div className="inline-block w-6 h-6 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: 'var(--accent)', borderTopColor: 'transparent' }} />
+                  <p className="font-ui text-sm mt-3" style={{ color: 'var(--text-secondary)' }}>
+                    Searching for RSS feeds...
+                  </p>
                 </div>
-              ))}
-            </div>
+              )}
+
+              {/* Error */}
+              {error && (
+                <div className="text-center py-8">
+                  <div
+                    className="w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-3"
+                    style={{ backgroundColor: 'var(--bg-surface)' }}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10" />
+                      <line x1="15" y1="9" x2="9" y2="15" />
+                      <line x1="9" y1="9" x2="15" y2="15" />
+                    </svg>
+                  </div>
+                  <p className="font-ui text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                    {error}
+                  </p>
+                </div>
+              )}
+
+              {/* Results */}
+              {feeds && feeds.length > 0 && (
+                <div className="space-y-2">
+                  <p className="font-ui text-xs font-medium" style={{ color: 'var(--text-tertiary)' }}>
+                    {feeds.length} feed{feeds.length > 1 ? 's' : ''} found
+                  </p>
+                  {feeds.map((feed, i) => (
+                    <div
+                      key={i}
+                      className="flex items-center gap-3 p-3 rounded-lg"
+                      style={{ backgroundColor: 'var(--bg-surface)' }}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="font-ui text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>
+                          {feed.title}
+                        </p>
+                        <p className="font-mono text-xs truncate" style={{ color: 'var(--text-tertiary)' }}>
+                          {feed.itemCount} articles
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => handleAdd(feed)}
+                        className="px-3 py-1.5 rounded-lg font-ui text-xs font-medium shrink-0"
+                        style={{ backgroundColor: 'var(--accent)', color: 'var(--accent-contrast)' }}
+                      >
+                        Add
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+            </>
           )}
         </div>
       </div>
     </div>
   );
 }
+

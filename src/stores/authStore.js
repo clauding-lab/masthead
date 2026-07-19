@@ -66,6 +66,18 @@ const useAuthStore = create((set, get) => ({
       set({ user: null, session: null });
       const useSettingsStore = (await import('./settingsStore')).default;
       useSettingsStore.getState().initFromStorage();
+
+      const usePremiumStore = (await import('./premiumStore')).default;
+      usePremiumStore.getState().reset();
+      const { useNewsFeedStore, useBlogsFeedStore } = await import('./feedStore');
+      for (const store of [useNewsFeedStore, useBlogsFeedStore]) {
+        store.setState({ headlines: [], fetchedAt: null, error: null, premiumIssues: [], premiumAuthFailed: false });
+      }
+      // The Workbox runtime cache would otherwise hand the masked premium list
+      // to the next account on a shared device (2E §5.2 / red-team finding).
+      if (typeof caches !== 'undefined') {
+        await caches.delete('api-cache').catch(() => {});
+      }
     }
   },
 }));

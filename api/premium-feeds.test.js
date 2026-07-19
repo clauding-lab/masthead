@@ -69,9 +69,16 @@ function req(method, { body, query = '' } = {}) {
   };
 }
 
+// Rate-limit keys denied for the current test — everything else resolves
+// allowed so the existing tests don't have to know about this mechanism.
+let deniedRateLimitKeys;
+
 beforeEach(() => {
+  deniedRateLimitKeys = new Set();
   vi.mocked(requireUser).mockReset().mockResolvedValue({ userId: USER_ID });
-  vi.mocked(checkRateLimit).mockReset().mockResolvedValue({ allowed: true });
+  vi.mocked(checkRateLimit).mockReset().mockImplementation(async (key) => ({
+    allowed: !deniedRateLimitKeys.has(key),
+  }));
   vi.mocked(assertPublicUrl).mockReset().mockResolvedValue(undefined);
   vi.mocked(validateFeedUrl).mockReset().mockResolvedValue({ title: 'Feed Title', finalUrl: 'https://good.example.com/feed.xml' });
   vi.mocked(getPremiumArticleBody).mockReset();
@@ -98,6 +105,37 @@ describe('auth guard (spec §4.1)', () => {
     await handler(req('GET'), res);
     expect(res.statusCode).toBe(500);
     expect(JSON.stringify(res.body)).not.toContain('secret-leak.example.com');
+  });
+});
+
+describe('rate limiting (spec §4.1)', () => {
+  it('per-IP limiter (premium:${ip}) denies → 429 before requireUser is ever called', async () => {
+    deniedRateLimitKeys.add('premium:10.1.1.1');
+    const res = fakeRes();
+    await handler(req('GET'), res);
+    expect(res.statusCode).toBe(429);
+    expect(res.body).toEqual({ error: 'Too many requests' });
+    expect(requireUser).not.toHaveBeenCalled();
+  });
+
+  it('POST per-user add limiter (premium-add:${userId}) denies with IP limiter allowing → 429 before any network/validation call', async () => {
+    deniedRateLimitKeys.add(`premium-add:${USER_ID}`);
+    const res = fakeRes();
+    await handler(req('POST', { body: { url: 'https://good.example.com/feed.xml', kind: 'news' } }), res);
+    expect(res.statusCode).toBe(429);
+    expect(res.body).toEqual({ error: 'Too many requests' });
+    expect(assertPublicUrl).not.toHaveBeenCalled();
+    expect(validateFeedUrl).not.toHaveBeenCalled();
+    expect(insertFeed).not.toHaveBeenCalled();
+  });
+
+  it('body GET per-user limiter (premium-body:${userId}) denies with IP limiter allowing → 429 before getPremiumArticleBody runs', async () => {
+    deniedRateLimitKeys.add(`premium-body:${USER_ID}`);
+    const res = fakeRes();
+    await handler(req('GET', { query: '?feed=feed-1&article=known' }), res);
+    expect(res.statusCode).toBe(429);
+    expect(res.body).toEqual({ error: 'Too many requests' });
+    expect(getPremiumArticleBody).not.toHaveBeenCalled();
   });
 });
 

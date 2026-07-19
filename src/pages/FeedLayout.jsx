@@ -5,6 +5,7 @@ import FeedPage from './FeedPage';
 import SourcePickerEmptyState from '../components/SourcePickerEmptyState';
 import { useNewsFeedStore, useBlogsFeedStore } from '../stores/feedStore';
 import useSettingsStore from '../stores/settingsStore';
+import usePremiumStore from '../stores/premiumStore';
 import { newsTabCategories, blogsTabCategories } from '../lib/feedCategories';
 import sourcesData from '../../lib/sources.json';
 
@@ -19,6 +20,11 @@ export default function FeedLayout({ mode }) {
   const selectedSourceIds = useSettingsStore((s) => s.selectedSourceIds);
   const customSources = useSettingsStore((s) => s.customSources);
   const getEffectiveSourcesByKind = useSettingsStore((s) => s.getEffectiveSourcesByKind);
+  // Reactive selectors (final-review Critical 2): a .getState() snapshot
+  // would miss the picker-gate update that must happen the instant
+  // addFeed/loadFeeds/removeFeed changes what's enabled for this kind.
+  const premiumFeeds = usePremiumStore((s) => s.feeds);
+  const premiumEnabledIds = usePremiumStore((s) => s.enabledIds);
 
   // Each fresh fetch's premiumIssues is a new array (2D/2E: filtered off the
   // response), so a dismissal shouldn't stick past a refresh that re-reports
@@ -44,7 +50,13 @@ export default function FeedLayout({ mode }) {
 
   const isSocialChip = mode === 'news' && selectedCategory === 'social';
   const pickerKind = mode === 'blogs' ? 'blog' : isSocialChip ? 'social' : null;
-  const needsPicker = pickerKind && getEffectiveSourcesByKind(pickerKind).length === 0;
+  // A premium-only kind (e.g. the user's only blog source is a paid feed)
+  // must not be trapped behind the "follow some sources" empty state
+  // (final-review Critical 2).
+  const hasEnabledPremiumForKind = !!pickerKind && premiumFeeds.some(
+    (f) => f.kind === pickerKind && premiumEnabledIds.includes(f.id)
+  );
+  const needsPicker = pickerKind && getEffectiveSourcesByKind(pickerKind).length === 0 && !hasEnabledPremiumForKind;
 
   return (
     <>

@@ -57,9 +57,11 @@ describe('PremiumSourceRow (2E)', () => {
     expect(container.innerHTML.includes(FEED.url)).toBe(false);
   });
 
-  it('renders a lock badge marking the feed as premium', () => {
+  it('renders a lock badge marking the feed as premium, exposed to assistive tech (not aria-hidden)', () => {
     const { container } = renderComponent(<PremiumSourceRow feed={FEED} />);
-    expect(container.querySelector('svg[aria-label="Premium feed"]')).toBeTruthy();
+    const lockIcon = container.querySelector('svg[aria-label="Premium feed"]');
+    expect(lockIcon).toBeTruthy();
+    expect(lockIcon.hasAttribute('aria-hidden')).toBe(false);
   });
 
   it('the enable toggle is a switch and calls toggleEnabled(id)', () => {

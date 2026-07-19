@@ -231,7 +231,15 @@ export default function AddSourceModal({ onAdd, onClose }) {
             <input
               type="checkbox"
               checked={isPremium}
-              onChange={(e) => setIsPremium(e.target.checked)}
+              onChange={(e) => {
+                // Custody guard (2E §5.1): `url` is shared with the plain
+                // discovery input, which has no autoComplete="off" and feeds
+                // the unauthenticated discoverRSS() call. Flipping either
+                // direction must not leave a premium token sitting there.
+                setIsPremium(e.target.checked);
+                setUrl('');
+                setPremiumError(null);
+              }}
               className="mt-0.5"
             />
             <span className="font-ui text-xs" style={{ color: 'var(--text-secondary)' }}>

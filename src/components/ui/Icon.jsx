@@ -109,6 +109,12 @@ const paths = {
 export default function Icon({ name, size = 20, className = '', style = {}, ...rest }) {
   const glyph = paths[name];
   if (!glyph) return null;
+  // Purely decorative icons stay aria-hidden (the default). A caller that
+  // passes aria-label is asking for the icon itself to carry meaning — an
+  // element can't be both hidden from and labelled for assistive tech, so
+  // aria-hidden must yield when a label is present (checked before the
+  // spread below adds it).
+  const isLabelled = Boolean(rest['aria-label']);
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -122,7 +128,7 @@ export default function Icon({ name, size = 20, className = '', style = {}, ...r
       strokeLinejoin="round"
       className={className}
       style={style}
-      aria-hidden="true"
+      aria-hidden={isLabelled ? undefined : 'true'}
       {...rest}
     >
       {glyph}

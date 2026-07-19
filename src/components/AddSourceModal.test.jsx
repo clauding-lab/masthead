@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import AddSourceModal from './AddSourceModal';
 import useAuthStore from '../stores/authStore';
 import usePremiumStore from '../stores/premiumStore';
-import { renderComponent, cleanupRendered, fireChange, fireClick, fireClickAsync } from '../test/domTestUtils';
+import { renderComponent, cleanupRendered, fireChange, fireClick, fireClickAsync, fireBlur } from '../test/domTestUtils';
 
 vi.mock('../stores/authStore', () => ({ default: vi.fn() }));
 vi.mock('../stores/premiumStore', () => ({ default: { getState: vi.fn() } }));
@@ -114,6 +114,10 @@ describe('AddSourceModal — premium path (2E)', () => {
     expect(container.innerHTML.includes(secretUrl)).toBe(false);
     expect(container.innerHTML.includes('SUPERSECRET123')).toBe(false);
     expect(container.querySelector('input[autocomplete="off"]')).toBeFalsy();
+
+    const lockIcon = container.querySelector('svg[aria-label="Premium feed added"]');
+    expect(lockIcon).toBeTruthy();
+    expect(lockIcon.hasAttribute('aria-hidden')).toBe(false);
   });
 
   it('surfaces the server error message when addFeed rejects', async () => {
@@ -127,6 +131,46 @@ describe('AddSourceModal — premium path (2E)', () => {
     await fireClickAsync(queryByText(container, 'Add'));
 
     expect(textContains(container, 'Premium feed limit reached (5)')).toBe(true);
+  });
+
+  it('clears the URL and any premium error when the premium checkbox is toggled off (no custody leak into the unauthenticated discovery input)', () => {
+    useAuthStore.mockReturnValue({ user: { id: 'u1' } });
+    const { container } = renderComponent(<AddSourceModal onAdd={vi.fn()} onClose={vi.fn()} />);
+
+    const checkbox = getCheckbox(container);
+    fireClick(checkbox);
+
+    const secretUrl = 'https://ft.com/rss?token=SUPERSECRET456';
+    fireChange(getPremiumUrlInput(container), secretUrl);
+
+    fireClick(checkbox); // uncheck — back to the plain, non-hardened discovery input
+
+    const discoveryInput = container.querySelector('input[type="text"]');
+    expect(discoveryInput).toBeTruthy();
+    expect(discoveryInput.value).toBe('');
+    expect(container.innerHTML.includes(secretUrl)).toBe(false);
+    expect(container.innerHTML.includes('SUPERSECRET456')).toBe(false);
+  });
+
+  it('suggestKind on blur pre-picks the kind in premium mode too', () => {
+    useAuthStore.mockReturnValue({ user: { id: 'u1' } });
+    const { container } = renderComponent(<AddSourceModal onAdd={vi.fn()} onClose={vi.fn()} />);
+    fireClick(getCheckbox(container));
+
+    // Default kind is 'news'; a substack.com host is one of suggestKind's
+    // real BLOG_HOST_SUFFIXES, so blurring should flip the radio to 'blog'.
+    const input = getPremiumUrlInput(container);
+    fireChange(input, 'https://writer.substack.com/feed');
+    fireBlur(input);
+
+    const blogRadio = Array.from(container.querySelectorAll('[role="radio"]')).find(
+      (r) => r.textContent.trim() === 'Blogs & Newsletters'
+    );
+    const newsRadio = Array.from(container.querySelectorAll('[role="radio"]')).find(
+      (r) => r.textContent.trim() === 'News feed'
+    );
+    expect(blogRadio.getAttribute('aria-checked')).toBe('true');
+    expect(newsRadio.getAttribute('aria-checked')).toBe('false');
   });
 
   it('the kind radiogroup only ever offers news/blog — social never appears, checked or not', () => {

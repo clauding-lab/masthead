@@ -163,4 +163,25 @@ describe('premium merge (2E Task 8)', () => {
     expect(last.body.premiumAuthFailed).toBeUndefined();
     expect(getHeadlinesForSources).toHaveBeenLastCalledWith([SRC], { category: null });
   });
+
+  it('(f) premium-only all-fail service response → 200 with premiumStatus relayed (catalog-caused 503s handled separately, untouched)', async () => {
+    vi.mocked(requireUser).mockResolvedValue({ userId: 'user-f' });
+    vi.mocked(getHeadlinesForSources).mockResolvedValue({
+      headlines: [],
+      feedStats: { total: 2, succeeded: 0, failed: 2, served: 'none' },
+      status: 200,
+      premiumStatus: [
+        { id: 'premium-feed-1', ok: false, reason: 'unavailable' },
+        { id: 'premium-feed-2', ok: false, reason: 'rejected' },
+      ],
+    });
+    const res = fakeRes();
+    await handler(post({ sources: [], premiumIds: ['premium-feed-1', 'premium-feed-2'] }, '10.9.9.15', 'Bearer good-token'), res);
+    expect(res.statusCode).toBe(200);
+    expect(res.body.headlines).toEqual([]);
+    expect(res.body.premiumStatus).toEqual([
+      { id: 'premium-feed-1', ok: false, reason: 'unavailable' },
+      { id: 'premium-feed-2', ok: false, reason: 'rejected' },
+    ]);
+  });
 });

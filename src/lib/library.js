@@ -32,8 +32,15 @@ export function capContent(content) {
 
 // The reader's saved-item branch keys on CONTENT-presence, not record-presence
 // (spec §4 reader integration): shells must never dead-end.
+//
+// A premium record (2E fix wave 1) must never resolve to 'live' — that
+// branch feeds the extractor, which returns the publisher's paywall teaser,
+// never the paid body. A bodyless premium record resolves to 'premium'
+// (refetch via the authed endpoint) when its feed id is on the record, or
+// 'shell' (terminal, no fetch) when it isn't.
 export function resolveReaderSource(saved, url) {
   if (saved && (saved.content || saved.textContent)) return 'stored';
+  if (saved && saved.savedVia === 'premium') return saved.sourceId ? 'premium' : 'shell';
   if (url) return 'live';
   if (saved) return 'shell';
   return 'none';
@@ -128,7 +135,15 @@ export async function saveArticle({ url, id, sourceMeta = {}, savedVia = 'url', 
   });
 
   let body = null;
-  if (preloadedArticle && (preloadedArticle.content || preloadedArticle.textContent)) {
+  if (savedVia === 'premium' && sourceMeta.sourceId) {
+    // Premium: always go through the authed body-on-demand endpoint — the
+    // extractor would hit the paywall and return a teaser (2E §5.3), so
+    // preloadedArticle is intentionally not consulted here. Never throws:
+    // a failed fetch (expired token, network) downgrades to a bodyFailed
+    // shell like every other channel, never a lost save.
+    const { fetchPremiumBody } = await import('./premiumApi');
+    body = await fetchPremiumBody(sourceMeta.sourceId, finalId).catch(() => null);
+  } else if (preloadedArticle && (preloadedArticle.content || preloadedArticle.textContent)) {
     body = preloadedArticle; // heart-from-reader: the app already holds the body
   } else if (/^https?:\/\//i.test(cleanUrl)) {
     body = await extractQueued(cleanUrl, sourceMeta.sourceId, d);
@@ -145,8 +160,24 @@ export async function saveArticle({ url, id, sourceMeta = {}, savedVia = 'url', 
 export async function retrySave(id, deps = {}) {
   const d = defaultDeps(deps);
   const saved = await getFavorite(id);
-  if (!saved || !/^https?:\/\//i.test(saved.url || '')) return saved ?? null;
-  const body = await extractQueued(saved.url, saved.sourceId, d);
+  if (!saved) return null;
+
+  let body = null;
+  if (saved.savedVia === 'premium') {
+    // Premium: retry through the authed body-on-demand endpoint — never the
+    // extractor, which would return the publisher's paywall teaser and
+    // silently overwrite the paid body (2E fix wave 1). A record with no
+    // feed id on file has nothing to retry against; body stays null.
+    if (saved.sourceId) {
+      const { fetchPremiumBody } = await import('./premiumApi');
+      body = await fetchPremiumBody(saved.sourceId, id).catch(() => null);
+    }
+  } else if (/^https?:\/\//i.test(saved.url || '')) {
+    body = await extractQueued(saved.url, saved.sourceId, d);
+  } else {
+    return saved;
+  }
+
   const record = body
     ? await applyBody(id, body, saved.title)
     : await patchSavedArticle(id, { pendingBody: false, bodyFailed: true });
@@ -160,6 +191,11 @@ export async function attachBodyToSaved(id, article, deps = {}) {
   const d = defaultDeps(deps);
   const saved = await getFavorite(id);
   if (!saved || saved.content) return saved ?? null;
+  // A premium record's body may only ever be written by the premium
+  // channels (saveArticle/retrySave via fetchPremiumBody) — never by a live
+  // extraction attaching itself here, which would silently persist the
+  // publisher's paywall teaser as if it were the paid body (2E fix wave 1).
+  if (saved.savedVia === 'premium') return saved;
   const record = await applyBody(id, article, saved.title);
   await pushIfSignedIn(record, d);
   return record;

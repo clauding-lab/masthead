@@ -11,7 +11,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "verify-catalog": "node scripts/verify-catalog.mjs"
+    "verify-catalog": "node scripts/verify-catalog.mjs",
+    "probe-premium": "node scripts/probe-premium-custody.mjs"
   },
   "dependencies": {
     "@hono/node-server": "^1.19.11",
@@ -32,6 +33,7 @@
     "rss-parser": "^3.13.0",
     "sanitize-html": "^2.17.5",
     "tailwindcss": "^3.4.19",
+    "tldts": "^7.4.9",
     "vite-plugin-pwa": "^1.2.0",
     "zustand": "^5.0.12"
   },

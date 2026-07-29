@@ -8,6 +8,11 @@ import {
 import { getFavorite, getAllFavorites, saveFavorite, addPendingUrl, getPendingUrls } from './db.js';
 import { articleId } from '../../lib/articleId.js';
 
+vi.mock('./premiumApi', () => ({
+  fetchPremiumBody: vi.fn(),
+}));
+import { fetchPremiumBody } from './premiumApi';
+
 const BODY = { title: 'Full', byline: 'By A', excerpt: 'ex', content: '<p>body</p>', leadImage: null, wordCount: 9, readingTimeMinutes: 1 };
 const noQueueWait = { spacingMs: 0, backoffMs: 0 };
 const deps = (over = {}) => ({
@@ -38,6 +43,11 @@ describe('helpers', () => {
     expect(resolveReaderSource({ content: null }, 'https://x.example/a')).toBe('live');
     expect(resolveReaderSource({ content: null, url: '' }, null)).toBe('shell');
     expect(resolveReaderSource(undefined, null)).toBe('none');
+  });
+  it('resolveReaderSource: a premium bodyFailed shell never resolves to "live" (2E fix wave 1)', () => {
+    expect(resolveReaderSource({ content: null, savedVia: 'premium', sourceId: 'feedA' }, 'https://pub.example/x')).toBe('premium');
+    expect(resolveReaderSource({ content: null, savedVia: 'premium', sourceId: null }, 'https://pub.example/x')).toBe('shell');
+    expect(resolveReaderSource({ content: '<p>x</p>', savedVia: 'premium', sourceId: 'feedA' }, 'https://pub.example/x')).toBe('stored');
   });
 });
 
@@ -104,6 +114,35 @@ describe('saveArticle', () => {
   });
 });
 
+describe('saveArticle: premium body (2E)', () => {
+  it('never calls the extractor and stores the premium content fetched via fetchPremiumBody', async () => {
+    fetchPremiumBody.mockReset().mockResolvedValue({ title: 'P', url: 'https://pub.example/p', content: '<p>premium body</p>' });
+    const d = deps();
+    const record = await saveArticle(
+      { url: 'https://pub.example/p', id: 'premid1234567890', sourceMeta: { sourceId: 'feedA', title: 'Premium Co' }, savedVia: 'premium' },
+      d
+    );
+    expect(d.extract).not.toHaveBeenCalled();
+    expect(fetchPremiumBody).toHaveBeenCalledWith('feedA', 'premid1234567890');
+    expect(record.content).toBe('<p>premium body</p>');
+    expect(record.pendingBody).toBe(false);
+    expect(record.bodyFailed).toBe(false);
+    expect(d.pushSavedFn).toHaveBeenCalledWith('u1', expect.objectContaining({ content: '<p>premium body</p>' }));
+  });
+
+  it('a failed premium body fetch files a bodyFailed shell and never calls the extractor', async () => {
+    fetchPremiumBody.mockReset().mockRejectedValue(new Error('Sign in required'));
+    const d = deps();
+    const record = await saveArticle(
+      { url: 'https://pub.example/q', id: 'premid2234567890', sourceMeta: { sourceId: 'feedA' }, savedVia: 'premium' },
+      d
+    );
+    expect(d.extract).not.toHaveBeenCalled();
+    expect(record.bodyFailed).toBe(true);
+    expect(record.content).toBeUndefined();
+  });
+});
+
 describe('retrySave / attachBodyToSaved / deleteSaved / processPendingSaves', () => {
   it('retrySave re-extracts a failed shell and attaches the body', async () => {
     const failing = deps({ extract: vi.fn().mockRejectedValue(new Error('down')) });
@@ -135,5 +174,46 @@ describe('retrySave / attachBodyToSaved / deleteSaved / processPendingSaves', ()
     expect(n).toBe(1);
     expect(await getPendingUrls()).toHaveLength(0);
     expect(await getFavorite(articleId('https://x.example/pending1'))).toBeDefined();
+  });
+});
+
+describe('retrySave / attachBodyToSaved: premium records (2E fix wave 1)', () => {
+  it('retrySave on a premium record retries via fetchPremiumBody and never calls the extractor', async () => {
+    await saveFavorite({
+      id: 'premretry1234567', url: 'https://pub.example/y', title: 'P',
+      sourceId: 'feedA', savedVia: 'premium', pendingBody: false, bodyFailed: true,
+    });
+    fetchPremiumBody.mockReset().mockResolvedValue({ title: 'P2', url: 'https://pub.example/y', content: '<p>real premium body</p>' });
+    const d = deps();
+    const record = await retrySave('premretry1234567', d);
+    expect(d.extract).not.toHaveBeenCalled();
+    expect(fetchPremiumBody).toHaveBeenCalledWith('feedA', 'premretry1234567');
+    expect(record.content).toBe('<p>real premium body</p>');
+    expect(record.bodyFailed).toBe(false);
+  });
+
+  it('a failed premium retry keeps the bodyFailed shell and never calls the extractor', async () => {
+    await saveFavorite({
+      id: 'premretry2234567', url: 'https://pub.example/z', title: 'P',
+      sourceId: 'feedA', savedVia: 'premium', pendingBody: false, bodyFailed: true,
+    });
+    fetchPremiumBody.mockReset().mockRejectedValue(new Error('Sign in required'));
+    const d = deps();
+    const record = await retrySave('premretry2234567', d);
+    expect(d.extract).not.toHaveBeenCalled();
+    expect(record.bodyFailed).toBe(true);
+    expect(record.content).toBeUndefined();
+  });
+
+  it('attachBodyToSaved refuses to write extractor-sourced content into a premium record', async () => {
+    await saveFavorite({
+      id: 'premshell1234567', url: 'https://pub.example/x', title: 'P',
+      sourceId: 'feedA', savedVia: 'premium', pendingBody: false, bodyFailed: true,
+    });
+    const d = deps();
+    const extractorLikeBody = { ...BODY, extractedAt: new Date().toISOString() };
+    const record = await attachBodyToSaved('premshell1234567', extractorLikeBody, d);
+    expect(record.content).toBeUndefined();
+    expect(d.pushSavedFn).not.toHaveBeenCalled();
   });
 });

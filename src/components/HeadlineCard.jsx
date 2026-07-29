@@ -47,11 +47,18 @@ export default function HeadlineCard({ headline, variant = 'compact', linkOut = 
     sourceName: headline.sourceName,
     sourceShortName: headline.sourceShortName,
     sourceColor: headline.sourceColor,
+    isPremium: headline.isPremium,
+    hasBody: headline.hasBody,
+    premiumFeedId: headline.premiumFeedId,
   };
   // Social posts open the original (2D spec §4.6) — reader extraction on
   // bsky/mastodon post pages produces junk, an honest link-out beats it.
-  const Wrapper = linkOut ? 'a' : Link;
-  const wrapperProps = linkOut
+  // Premium items always navigate in-app (2E), even in the social chip —
+  // the reader knows how to fetch a premium body; a link-out would just
+  // hit the paywall.
+  const isLinkOut = linkOut && !headline.isPremium;
+  const Wrapper = isLinkOut ? 'a' : Link;
+  const wrapperProps = isLinkOut
     ? { href: headline.url, target: '_blank', rel: 'noopener noreferrer' }
     : { to: `/article/${headline.id}`, state: linkState };
 

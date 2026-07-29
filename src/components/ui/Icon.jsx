@@ -95,11 +95,26 @@ const paths = {
       <line x1="12" x2="12" y1="17" y2="21" />
     </>
   ),
+  // PremiumSourceRow.jsx premium-feed badge (2E §5.1)
+  lock: (
+    <>
+      <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
+      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+    </>
+  ),
+  // PremiumSourceRow.jsx edit button (2E §5.1)
+  edit: <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />,
 };
 
 export default function Icon({ name, size = 20, className = '', style = {}, ...rest }) {
   const glyph = paths[name];
   if (!glyph) return null;
+  // Purely decorative icons stay aria-hidden (the default). A caller that
+  // passes aria-label is asking for the icon itself to carry meaning — an
+  // element can't be both hidden from and labelled for assistive tech, so
+  // aria-hidden must yield when a label is present (checked before the
+  // spread below adds it).
+  const isLabelled = Boolean(rest['aria-label']);
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -113,7 +128,7 @@ export default function Icon({ name, size = 20, className = '', style = {}, ...r
       strokeLinejoin="round"
       className={className}
       style={style}
-      aria-hidden="true"
+      aria-hidden={isLabelled ? undefined : 'true'}
       {...rest}
     >
       {glyph}

@@ -13,12 +13,12 @@ export async function fetchHeadlines({ category, source } = {}) {
   return res.json();
 }
 
-export async function fetchHeadlinesWithSources(sources, { category } = {}) {
-  const res = await fetch(`${API_BASE}/feeds`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ sources, category }),
-  });
+export async function fetchHeadlinesWithSources(sources, { category, premiumIds, accessToken } = {}) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (accessToken && premiumIds?.length) headers.Authorization = `Bearer ${accessToken}`;
+  const body = { sources, category };
+  if (premiumIds?.length) body.premiumIds = premiumIds;
+  const res = await fetch(`${API_BASE}/feeds`, { method: 'POST', headers, body: JSON.stringify(body) });
   if (!res.ok) throw new Error(`Failed to fetch headlines: ${res.status}`);
   return res.json();
 }

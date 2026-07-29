@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import useSettingsStore from '../stores/settingsStore';
 import useAuthStore from '../stores/authStore';
+import usePremiumStore from '../stores/premiumStore';
 import { getStorageEstimate } from '../lib/db';
 import SourceToggleRow from '../components/SourceToggleRow';
+import PremiumSourceRow from '../components/PremiumSourceRow';
 import AddSourceModal from '../components/AddSourceModal';
 import Icon from '../components/ui/Icon';
 import sourcesData from '../../lib/sources.json';
@@ -57,12 +59,25 @@ function SettingSection({ title, children }) {
 export default function SettingsPage() {
   const { theme, fontSize, selectedSourceIds, customSources, setTheme, setFontSize, toggleSource, addCustomSource, removeCustomSource } = useSettingsStore();
   const { user, signInWithGoogle, signOut } = useAuthStore();
+  const premiumFeeds = usePremiumStore((s) => s.feeds);
   const [storage, setStorage] = useState(null);
   const [showAddModal, setShowAddModal] = useState(false);
 
   useEffect(() => {
     getStorageEstimate().then(setStorage);
   }, []);
+
+  // Premium feeds are server-owned; only load once a session exists (2E §5.1).
+  useEffect(() => {
+    if (user) {
+      usePremiumStore.getState().loadFeeds();
+    }
+  }, [user]);
+
+  const premiumFeedsByKind = premiumFeeds.reduce((acc, feed) => {
+    (acc[feed.kind] ||= []).push(feed);
+    return acc;
+  }, {});
 
   const formatBytes = (bytes) => {
     if (!bytes) return '0 B';
@@ -73,9 +88,9 @@ export default function SettingsPage() {
 
   const allSources = [...sourcesData.sources, ...customSources];
   const sourceGroups = [
-    ['News Sources', allSources.filter((s) => sourceKind(s) === 'news')],
-    ['Blogs & Newsletters', allSources.filter((s) => sourceKind(s) === 'blog')],
-    ['Social', allSources.filter((s) => sourceKind(s) === 'social')],
+    ['News Sources', allSources.filter((s) => sourceKind(s) === 'news'), 'news'],
+    ['Blogs & Newsletters', allSources.filter((s) => sourceKind(s) === 'blog'), 'blog'],
+    ['Social', allSources.filter((s) => sourceKind(s) === 'social'), 'social'],
   ];
 
   const handleAddSource = (source) => {
@@ -141,7 +156,7 @@ export default function SettingsPage() {
       </SettingSection>
 
       {/* Sources, grouped by kind */}
-      {sourceGroups.map(([title, sources], gi) => (
+      {sourceGroups.map(([title, sources, groupKind], gi) => (
         <SettingSection key={title} title={title}>
           <div>
             {sources.map((src) => {
@@ -156,6 +171,9 @@ export default function SettingsPage() {
                 />
               );
             })}
+            {user && premiumFeedsByKind[groupKind]?.map((feed) => (
+              <PremiumSourceRow key={feed.id} feed={feed} />
+            ))}
             {gi === 0 && (
               <button
                 onClick={() => setShowAddModal(true)}

@@ -173,6 +173,28 @@ describe('AddSourceModal — premium path (2E)', () => {
     expect(newsRadio.getAttribute('aria-checked')).toBe('false');
   });
 
+  it('an explicit kind choice survives premium URL blur', () => {
+    useAuthStore.mockReturnValue({ user: { id: 'u1' } });
+    const { container } = renderComponent(<AddSourceModal onAdd={vi.fn()} onClose={vi.fn()} />);
+    fireClick(getCheckbox(container));
+
+    const findRadio = (label) =>
+      Array.from(container.querySelectorAll('[role="radio"]')).find(
+        (r) => r.textContent.trim() === label
+      );
+
+    fireClick(findRadio('Blogs & Newsletters'));
+
+    // construction-physics.com is a Substack on a custom domain, so suggestKind
+    // has no way to know and defaults to 'news'. The explicit pick outranks it.
+    const input = getPremiumUrlInput(container);
+    fireChange(input, 'https://www.construction-physics.com/feed');
+    fireBlur(input);
+
+    expect(findRadio('Blogs & Newsletters').getAttribute('aria-checked')).toBe('true');
+    expect(findRadio('News feed').getAttribute('aria-checked')).toBe('false');
+  });
+
   it('the kind radiogroup only ever offers news/blog — social never appears, checked or not', () => {
     useAuthStore.mockReturnValue({ user: { id: 'u1' } });
     const { container } = renderComponent(<AddSourceModal onAdd={vi.fn()} onClose={vi.fn()} />);

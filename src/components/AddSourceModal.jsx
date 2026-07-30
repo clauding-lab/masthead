@@ -12,6 +12,9 @@ export default function AddSourceModal({ onAdd, onClose }) {
   const [error, setError] = useState(null);
   const [category, setCategory] = useState('custom');
   const [kind, setKind] = useState('news');
+  // suggestKind is only a domain-based default (2D §4.5): once the user has
+  // picked a kind themselves, that choice outranks every later suggestion.
+  const [kindTouched, setKindTouched] = useState(false);
   const { user } = useAuthStore();
   const [isPremium, setIsPremium] = useState(false);
   const [premiumAdded, setPremiumAdded] = useState(null);
@@ -30,7 +33,7 @@ export default function AddSourceModal({ onAdd, onClose }) {
       const result = await discoverRSS(url.trim());
       if (result.feeds && result.feeds.length > 0) {
         setFeeds(result.feeds);
-        setKind(suggestKind(result.feeds[0].feedUrl || url.trim()));
+        if (!kindTouched) setKind(suggestKind(result.feeds[0].feedUrl || url.trim()));
       } else {
         setError('No RSS Available');
       }
@@ -170,7 +173,7 @@ export default function AddSourceModal({ onAdd, onClose }) {
                   id={premiumFieldName}
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
-                  onBlur={() => setKind(suggestKind(url))}
+                  onBlur={() => { if (!kindTouched) setKind(suggestKind(url)); }}
                   placeholder="Paste your subscriber feed URL (https://…)"
                   className="flex-1 px-3 py-2.5 rounded-lg font-ui text-sm outline-none"
                   style={{
@@ -212,7 +215,10 @@ export default function AddSourceModal({ onAdd, onClose }) {
                   type="button"
                   role="radio"
                   aria-checked={kind === value}
-                  onClick={() => setKind(value)}
+                  onClick={() => {
+                    setKind(value);
+                    setKindTouched(true);
+                  }}
                   className="flex-1 px-3 py-2 rounded-lg font-ui text-sm font-medium"
                   style={{
                     backgroundColor: kind === value ? 'var(--accent)' : 'var(--bg-surface)',

@@ -37,6 +37,34 @@ When something ships broken, when a methodology gap is exposed, or when a smoke 
 
 ## Entries (most recent first)
 
+## 2026-07-30 — Phase 2 · 2E ship | A "suggestion" that writes to the same state as an explicit control silently overrides the user
+
+**Trigger:** 2E prod live drive, first real premium add. Owner-selected "Blogs & Newsletters", pasted a premium URL, clicked Add — server stored `kind: "news"`. 355 green tests, 12 per-task reviews, and a whole-branch final review had all passed over the code path.
+
+**What went wrong:** `AddSourceModal.jsx` wired `suggestKind(url)` (a domain-based *default*, 2D §4.5) into the premium input's `onBlur` and the discovery success path **unconditionally**. Clicking Add always blurs the input first, so any custom-domain feed (which most paid Substacks are — the drive URL construction-physics.com among them) forced `kind` back to `'news'` after the user had explicitly chosen blog. Every existing test exercised the suggestion in the direction where the user *hadn't* chosen — the pinned blur test itself only asserted the helpful flip.
+
+**Lesson:** when a suggestion/auto-fill writes to the same state as an explicit user control, there must be a test where the user chose *against* the suggestion — and the suggestion must lose.
+
+**Prevention:** `kindTouched` gate (explicit choice latches; suggestions only fill untouched state); RED-first repro test "an explicit kind choice survives premium URL blur"; live-drive gate retained for every slice — this class of composition-with-real-data bug has now been caught by the drive twice (see 2D fallback-leak entry).
+
+**Hotfix:** PR #9 (`041ed02`), same-day; data repaired in place via the row's PATCH edit (label/kind/category are editable post-add — the pencil form).
+
+**Cross-references:** AGENTS.md landmine 21; global rulebook entry same date; auto-memory `masthead-2e-shipped`.
+
+## 2026-07-30 — Phase 2 · 2E ship | window.confirm froze the browser-automation drive; premium delete UX diverges from custom-source delete
+
+**Trigger:** same live drive — clicking "Remove" on the premium Settings row froze all automation (screenshots, clicks, navigation timing out).
+
+**What went wrong:** `PremiumSourceRow.jsx:21` uses native `window.confirm` for delete. Native dialogs block the renderer for CDP-driven automation until a human dismisses them — the drive needed a manual assist. Separately, custom news sources delete instantly with no confirmation at all: two different deletion contracts in the same list.
+
+**Lesson:** native browser dialogs are automation-hostile and off-pattern in an app that owns a designed modal system; deletion UX for sibling row types should share one contract.
+
+**Prevention:** when driving the app via automation, delete premium rows through the authed API (`DELETE /api/premium-feeds`), not the row button. Open follow-up (owner call, not auto-fixed): replace `window.confirm` with an in-app confirm and align custom-source delete.
+
+**Hotfix:** none shipped — behavior works for humans; logged as UX-consistency follow-up.
+
+**Cross-references:** AGENTS.md landmine 22.
+
 ## 2026-07-18 — Phase 2 · 2D | rss-parser's default whitelist made the media:* thumbnail path dead code for every feed
 
 **Trigger:** Task 4's house rule that fixtures must be REAL captured payloads — the first live Mastodon capture run through the real parser failed the thumbnail assertion that hand-fed unit-test objects had always passed.

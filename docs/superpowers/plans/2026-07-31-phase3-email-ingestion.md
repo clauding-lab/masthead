@@ -432,7 +432,8 @@ describe('parseEmail', () => {
   });
   it('extracts List-Unsubscribe https over mailto when both present', async () => {
     const p = await parseEmail(load('mailchimp.eml'));
-    if (p.unsubscribeUrl) expect(p.unsubscribeUrl.startsWith('https://')).toBe(true);
+    expect(p.unsubscribeUrl).not.toBeNull();
+    expect(p.unsubscribeUrl.startsWith('https://')).toBe(true);
   });
 });
 ```

@@ -316,7 +316,7 @@ describe('sanitizeEmailHtml', () => {
     expect(out).toContain('noopener');
   });
   it('strips NUL characters (Postgres rejects them)', () => {
-    expect(sanitizeEmailHtml('ab')).not.toContain('');
+    expect(sanitizeEmailHtml('a\0b')).not.toContain('\0');
   });
   it('returns empty string for null/empty input', () => {
     expect(sanitizeEmailHtml(null)).toBe('');
@@ -375,7 +375,7 @@ const OPTIONS = {
 
 export function sanitizeEmailHtml(html) {
   if (!html) return '';
-  return sanitizeHtml(String(html).replace(//g, ''), OPTIONS);
+  return sanitizeHtml(String(html).replace(/\0/g, ''), OPTIONS);
 }
 ```
 

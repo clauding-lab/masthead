@@ -1,0 +1,689 @@
+X-Fixture-Source: HTML body captured 2026-07-31 from the public web
+ version of
+ https://www.construction-physics.com/p/why-is-everyone-trying-to-build-a
+ (Substack post body, div.body.markup). MIME envelope constructed for
+ tests; payload HTML is unmodified.
+Return-Path: <bounce-md-6f2a19@mg.substack.com>
+Delivered-To: reader@inbox.masthead.news
+Authentication-Results: mx.masthead.news; dkim=pass header.i=@substack.com
+ header.s=mailo1 header.b=Qk3ZvB9x; spf=pass (mx.masthead.news: domain of
+ bounce-md-6f2a19@mg.substack.com designates 198.61.254.12 as permitted
+ sender) smtp.mailfrom=mg.substack.com; dmarc=pass (p=NONE sp=NONE
+ dis=NONE) header.from=substack.com
+Date: Wed, 29 Jul 2026 13:02:14 +0000
+From: Brian Potter <brianpotter@substack.com>
+To: reader@inbox.masthead.news
+Subject: Why Is Everyone Trying to Build a Solid-State Battery?
+Message-ID: <20260729130214.a83f1c9e4d7b@mg.substack.com>
+List-Unsubscribe: <https://www.construction-physics.com/action/disable_email?token=eyJ1c2VyX2lkIjo0MTU5MjIsInBvc3RfaWQiOjE2ODIwNDQ0fQ>
+List-Unsubscribe-Post: List-Unsubscribe=One-Click
+List-Post: <https://www.construction-physics.com/p/why-is-everyone-trying-to-build-a>
+List-ID: Construction Physics <construction-physics.substack.com>
+Precedence: list
+MIME-Version: 1.0
+Content-Type: multipart/alternative; boundary="b1_0d4c8e5f2a7b41d6a9c3e8f10b62d745"
+
+--b1_0d4c8e5f2a7b41d6a9c3e8f10b62d745
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+
+A battery technology that=E2=80=99s getting a lot of attention is solid-sta=
+te
+batteries, lithium-ion batteries that replace the liquid electrolyte with
+a solid material. Chinese battery manufacturer CATL alone had more than
+1,000 people devoted to solid-state battery research as of 2024, and
+battery manufacturers like BYD, LG, and Samsung are also working on the
+technology. US and European startups making solid-state batteries have
+collectively raised over $4 billion as of 2025.
+Solid-state batteries have several potential advantages over the
+lithium-ion batteries with liquid electrolyte we use now. For one,
+replacing the liquid electrolyte with a solid should allow for lighter
+batteries, requiring less mass per unit of energy delivered. And because
+the liquid electrolyte currently used in batteries is flammable, replacing
+it with a solid could make batteries safer and less susceptible to fire.
+I wanted to better understand why, exactly, solid-state batteries have
+these advantages compared to conventional lithium-ion batteries, and how
+they fit into the broader arc of lithium battery improvements.
+Battery basics
+Batteries supply energy by way of chemical reactions. And chemical
+reactions, regardless of the chemicals involved, all release or absorb
+energy using the same mechanism: an electron or electrons move from one
+potential energy well to another. In a chemical reaction that gives off
+energy (an exothermic reaction), electrons move from a higher potential
+well to a lower potential well, giving off energy in the process.
+=E2=80=9CPotential well=E2=80=9D is fairly abstract, so I find it useful to=
+ consider an
+analogy with gravity. Say a ball is in a shallow groove at the top of a
+tall hill, and there=E2=80=99s another shallow groove at the bottom. The ba=
+ll is
+being tugged downward by gravity, which gives it potential energy, a
+function of how much mass the ball has and how high it is above the bottom
+of the hill. By itself, the ball at the top of the hill won=E2=80=99t move,=
+ but if
+you give it a little push to nudge it out of its groove, it will roll
+downhill, releasing its potential energy in the process. This potential
+energy is converted to kinetic energy (the velocity of the ball), which in
+turn converts to thermal energy from friction, slowing the ball down until
+it stops in the lower groove.
+Chemical reactions work in a somewhat similar way. But instead of gravity,
+the potential energy comes from electromagnetism: the positively charged
+nuclei tugging on the negatively charged electrons. In an exothermic
+reaction, atoms start in some particular =E2=80=9Cgroove,=E2=80=9D their el=
+ectrons in some
+particular arrangement. But if you give the atoms a little kick (say, by
+heating them up so their collisions become more energetic), you can knock
+them out of their groove, letting them =E2=80=9Croll downhill=E2=80=9D into=
+ a lower-energy
+configuration, converting their electric potential energy in the process.
+Some of that potential energy (half, in fact) will go to increasing the
+electrons=E2=80=99 velocities; the rest will be released as vibration (heat=
+), or
+as a photon.
+So, for instance, say you start with one methane molecule (one carbon and
+four hydrogens, CH4) and two oxygen molecules (each with two oxygen atoms,
+O2). These molecules start with their electrons in a particular
+configuration, the oxygen atoms bonded with each other and the hydrogen
+atoms bonded with the carbon. At room temperature, O2 and CH4 largely
+won=E2=80=99t react with each other: each is sitting in its own potential w=
+ell
+that takes energy to climb out of. But give them a kick by adding heat,
+and they can =E2=80=9Cfall downhill,=E2=80=9D going through a series of rea=
+ctions and
+ending up in a lower-energy configuration =E2=80=94 the hydrogen and carbon=
+ atoms
+each bond with oxygen, forming H2O and CO2. The resulting electron
+configurations are in lower potential energy wells, with much of the
+difference being released as heat.
+Lithium-ion batteries work by using, unsurprisingly, chemical reactions
+with lithium. When a lithium-ion battery discharges, lithium ions and
+their electrons =E2=80=9Cfall downhill,=E2=80=9D moving from one configurat=
+ion at the
+anode (inserted between sheets of graphite, known as =E2=80=9Cintercalation=
+=E2=80=9D) into
+a different, lower-energy configuration at the cathode (intercalated in
+another material, such as lithium iron phosphate, LiFePO4). The battery is
+structured to capture energy from this reaction. Lithium ions can pass
+from the anode into the electrolyte, but electrons can=E2=80=99t: they must=
+ go
+around, through a metallic conductor that connects the anode and the
+cathode. This flow of electrons is the electrical current that batteries
+generate. (When a battery is charging, the reverse happens: a voltage
+placed on the conductor forces electrons back uphill into the anode, with
+lithium ions flowing back through the electrolyte to keep the charge
+balanced.)1
+Lithium ion battery diagram, via link.
+Lithium is a favored choice for a battery because an electron leaving
+lithium has farther to fall than an electron leaving any other metal when
+coupled with the appropriate reactant. Lithium is also a very light atom
+(an atomic mass of around 7), which, combined with the large =E2=80=9Cdrop,=
+=E2=80=9D means
+that lithium reactions yield a high amount of energy. Per unit mass,
+lithium reactions release roughly as much energy as burning gasoline.
+But if this is true, why are lithium-ion batteries so much less energy
+dense than gasoline?
+Energy densities of various batteries and fuels, via Wikipedia.
+One big reason is the oxidizer. The chemical reactions we rely on for
+energy typically require some downhill destination for electrons to end up
+at, which is known as an oxidizer. When burning gasoline, the oxidizer is
+oxygen in the surrounding air: inside a gasoline engine, fuel and air are
+mixed together and then ignited, triggering the chemical reaction =E2=80=94=
+ an
+explosion =E2=80=94 that powers the engine. Gasoline-powered cars, in other=
+ words,
+don=E2=80=99t need to carry their oxidizer with them, because there=E2=80=
+=99s always one
+available in the surroundings.
+Lithium-ion batteries, on the other hand, aren=E2=80=99t so fortunate. They=
+ need
+to carry their electron destination with them, in the form of the cathode.
+This adds a lot of extra mass compared to what a gasoline-powered car
+needs to carry. If a car needed to carry its own oxidizer with it, it
+would need about 3.5 kilograms of oxygen for every 1 kilogram of gasoline.
+More generally, it just requires a lot of material scaffolding to
+structure the lithium reaction in a way that lets you extract energy from
+it in the form of electric current. At the anode, each lithium ion
+requires an additional six atoms of carbon, forming graphite sheets that
+the lithium ions can nestle into. A similar intercalation structure is
+required at the cathode. On top of this is the extra mass for the
+electrolyte, the separator, the current collectors, and so on. As of 2019,
+every gram of reacting lithium in a battery required about 70 grams of
+supporting material (though this number has probably fallen somewhat since
+then).
+Without this material scaffolding, the reaction can still take place, but
+in a non-useful way. If something creates a direct path between the
+cathode and the anode, the reaction will run nearly instantly, creating a
+lot of heat and triggering other chemical reactions that will destroy the
+battery, but no useful electric current. Modern battery design, in fact,
+takes a lot of effort to prevent these runaway reactions from taking
+place.
+The benefit of all this material scaffolding, of course, is that you can
+use the same chemicals for the reaction over and over again. The
+intercalating electrodes on modern lithium-ion batteries in particular are
+very good at this; because the electrode structure is maintained when the
+battery charges/discharges, lithium-ion batteries can be used for very
+large numbers of cycles while maintaining most of their capacity. When you
+burn gasoline, on the other hand, you=E2=80=99re discharging the products o=
+f the
+reaction continuously (which, of course, is the whole reason we want to
+switch away from fossil fuels in the first place, to stop the discharged
+CO2 from building up in the atmosphere). You could, theoretically, dispose
+of the lithium-ion battery=E2=80=99s scaffolding by having some sort of
+lithium-based internal combustion engine, but this would work terribly and
+be outrageously expensive to run (though some people are interested in
+using oxygen in the air as a battery oxidizer with lithium-air batteries).
+The promise of solid-state batteries
+The major potential benefit of solid-state batteries is a substantial
+reduction in this material scaffolding.
+A pernicious issue with current lithium-ion batteries is dendrites. As
+we=E2=80=99ve noted, at the anode, lithium ions are nestled between sheets =
+of
+graphite. But the anode holds the lithium ions very loosely, only slightly
+better than metallic lithium does. This is useful, because ions can easily
+migrate into the electrolyte, thus letting the battery work, but it=E2=80=
+=99s a
+double-edged sword: under the right conditions, the lithium ions that are
+supposed to enter the anode during charging might instead acquire an
+electron at the surface of the anode, forming tree-shaped structures of
+metallic lithium called dendrites, instead of nestling between the sheets
+of graphite. If a dendrite pierces the separator between the anode and the
+cathode, it creates a direct path between the two, letting that runaway
+reaction that batteries are designed to prevent take place. (This doesn=E2=
+=80=99t
+immediately react all the lithium in the battery =E2=80=94 as electric curr=
+ent
+flows through the dendrite, the dendrite heats up, eventually melting and
+breaking the path =E2=80=94 but the heat from the brief reaction can be eno=
+ugh to
+trigger other chemical reactions, resulting in thermal runaway and
+destroying the battery.) A great deal of battery development effort is
+devoted to preventing these dendrites from forming.
+Dendrite growth, via Wikipedia.
+If, however, the liquid electrolyte were replaced with some sort of solid
+material, these dendrites might stop being a problem.2 With a strong,
+solid electrolyte, dendrites wouldn=E2=80=99t (in theory) be able to make t=
+heir
+way through it, though with current solid electrolytes dendrites still
+seem to find their way through. And if the risk of dendrites were
+eliminated, you could switch to a different anode, dispensing with the
+graphite intercalating structure entirely, using an anode of pure lithium
+metal.3 And because the solid material would eliminate the flammable
+electrolyte, the resulting battery might be safer as well.
+Solid-state batteries probably aren=E2=80=99t imminent =E2=80=94 the chairm=
+an of CATL
+ranks them as 4 out of 9 on the technological readiness scale, and has
+indicated that commercial viability =E2=80=9Chas yet to be established.=E2=
+=80=9D But the
+expectation that they could be =E2=80=9C[p]otentially safer, more energy de=
+nse,
+and perhaps eventually cheaper than today=E2=80=99s batteries=E2=80=9D is p=
+ushing
+manufacturers around the world to try and make them happen.
+Thanks to Austin Vernon for reading a draft of this. All errors are my
+own.
+1The reason that electrons migrate during discharge is somewhat complex.
+At the anode, lithium ions migrate into the electrolyte, because the
+electrolyte is a more appealing location with a lower potential energy
+well. At the cathode, the reverse occurs; lithium ions migrate from the
+electrolyte into the cathode. At each electrode, this creates a net charge
+which generates an electric field, which stops further migration. But
+because you now have a net negative charge at the anode interface (since
+positively charged lithium ions have left) and a net positive charge at
+the cathode interface (because positively charged lithium ions have
+entered), electrons flow between the two electrodes when they=E2=80=99re co=
+nnected
+by a conductor to equalize the charges. But because each arriving electron
+is paired with an arriving lithium ion, the charge differences between the
+anode and the cathode don=E2=80=99t equalize, letting current flow continuo=
+usly
+until there=E2=80=99s no more room for lithium ions in the cathode or no mo=
+re
+lithium ions left in the anode (though most batteries have a cutoff that
+stops current flowing when the voltage drops below some level).
+2In a crystalline solid electrolyte, lithium ions migrate through it by
+hopping from one vacancy in a solid crystal lattice to the next. Thanks to
+their thermal energy, the ions vibrate back and forth trillions of times
+per second, and occasionally a vibration will have enough energy and be in
+the correct direction to squeeze past the surrounding atoms into a nearby
+vacancy.
+3A company in the 1980s, Moli Energy, tried to make lithium batteries with
+lithium metal anodes but gave up after dendrite problems caused their
+batteries to catch fire, requiring a massive recall.
+--b1_0d4c8e5f2a7b41d6a9c3e8f10b62d745
+Content-Type: text/html; charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"auto" class=3D"body markup"><p><span>A battery technology that=
+=E2=80=99s getting a lot of attention is solid-state batteries, lithium-ion=
+ batteries that replace the liquid electrolyte with a solid material. Chine=
+se battery manufacturer CATL alone had more than </span><a href=3D"https://=
+cnevpost.com/2024/11/06/catl-solid-state-batteries-begin-sample-validation-=
+report/"><span>1,000 people</span></a><span> devoted to solid-state battery=
+ research as of 2024, and battery manufacturers like </span><a href=3D"http=
+s://electrek.co/2026/06/01/byd-all-solid-state-batteries-evs-by-2027/"><spa=
+n>BYD</span></a><span>, </span><a href=3D"https://blog.lgchem.com/en/2026/0=
+3/25_solid_state_battery/"><span>LG</span></a><span>, and </span><a href=3D=
+"https://www.samsungsdi.com/sdi-now/sdi-news/4782.html"><span>Samsung</span=
+></a><span> are also working on the technology. US and European startups ma=
+king solid-state batteries have collectively raised over $4 billion </span>=
+<a href=3D"https://www.electronicsweekly.com/news/business/solid-state-ev-b=
+attery-start-ups-in-sample-mode-2025-03/"><span>as of 2025</span></a><span>=
+.</span></p><p><span>Solid-state batteries have several potential advantage=
+s over the lithium-ion batteries with liquid electrolyte we use now. For on=
+e, replacing the liquid electrolyte with a solid should allow for lighter b=
+atteries, requiring less mass per unit of energy delivered. And because the=
+ liquid electrolyte currently used in batteries is flammable, replacing it =
+with a solid could make batteries safer and less susceptible to fire.</span=
+></p><p><span>I wanted to better understand why, exactly, solid-state batte=
+ries have these advantages compared to conventional lithium-ion batteries, =
+and how they fit into the broader arc of lithium battery improvements.</spa=
+n></p><h4 class=3D"header-anchor-post"><span>Battery basics</span><div clas=
+s=3D"pencraft pc-display-flex pc-alignItems-center pc-position-absolute pc-=
+reset header-anchor-parent"><div class=3D"pencraft pc-display-contents pc-r=
+eset pubTheme-yiXxQA"><div id=3D"=C2=A7battery-basics" class=3D"pencraft pc=
+-reset header-anchor offset-top"></div><button tabindex=3D"0" type=3D"butto=
+n" aria-label=3D"Link" data-href=3D"https://www.construction-physics.com/i/=
+209023054/battery-basics" class=3D"pencraft pc-reset iconButton-mq_Et5 icon=
+ButtonBase-dJGHgN buttonBase-GK1x3M buttonStyle-r7yGCK size_sm-G3LciD prior=
+ity_secondary-S63h9o"><svg xmlns=3D"http://www.w3.org/2000/svg" width=3D"18=
+" height=3D"18" viewBox=3D"0 0 24 24" fill=3D"none" stroke=3D"currentColor"=
+ stroke-width=3D"2" stroke-linecap=3D"round" stroke-linejoin=3D"round" clas=
+s=3D"lucide lucide-link"><path d=3D"M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-=
+7.07-7.07l-1.72 1.71" /><path d=3D"M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0=
+ 7.07 7.07l1.71-1.71" /></svg></button></div></div></h4><p><span>Batteries =
+supply energy by way of chemical reactions. And chemical reactions, regardl=
+ess of the chemicals involved, all release or absorb energy using the same =
+mechanism: an electron or electrons move from one potential energy well to =
+another. In a chemical reaction that gives off energy (an exothermic reacti=
+on), electrons move from a higher potential well to a lower potential well,=
+ giving off energy in the process.</span></p><p><span>=E2=80=9CPotential we=
+ll=E2=80=9D is fairly abstract, so I find it useful to consider an analogy =
+with gravity. Say a ball is in a shallow groove at the top of a tall hill, =
+and there=E2=80=99s another shallow groove at the bottom. The ball is being=
+ tugged downward by gravity, which gives it potential energy, a function of=
+ how much mass the ball has and how high it is above the bottom of the hill=
+. By itself, the ball at the top of the hill won=E2=80=99t move, but if you=
+ give it a little push to nudge it out of its groove, it will roll downhill=
+, releasing its potential energy in the process. This potential energy is c=
+onverted to kinetic energy (the velocity of the ball), which in turn conver=
+ts to thermal energy from friction, slowing the ball down until it stops in=
+ the lower groove.</span></p><p><span>Chemical reactions work in a somewhat=
+ similar way. But instead of gravity, the potential energy comes from elect=
+romagnetism: the positively charged nuclei tugging on the negatively charge=
+d electrons. In an exothermic reaction, atoms start in some particular =E2=
+=80=9Cgroove,=E2=80=9D their electrons in some particular arrangement. But =
+if you give the atoms a little kick (say, by heating them up so their colli=
+sions become more energetic), you can knock them out of their groove, letti=
+ng them =E2=80=9Croll downhill=E2=80=9D into a lower-energy configuration, =
+converting their electric potential energy in the process. Some of that pot=
+ential energy (</span><a href=3D"https://en.wikipedia.org/wiki/Virial_theor=
+em"><span>half, in fact</span></a><span>) will go to increasing the electro=
+ns=E2=80=99 velocities; the rest will be released as vibration (heat), or a=
+s a photon.</span></p><p><span>So, for instance, say you start with one met=
+hane molecule (one carbon and four hydrogens, CH4) and two oxygen molecules=
+ (each with two oxygen atoms, O2). These molecules start with their electro=
+ns in a particular configuration, the oxygen atoms bonded with each other a=
+nd the hydrogen atoms bonded with the carbon. At room temperature, O2 and C=
+H4 largely won=E2=80=99t react with each other: each is sitting in its own =
+potential well that takes energy to climb out of. But give them a kick by a=
+dding heat, and they can =E2=80=9Cfall downhill,=E2=80=9D going through a s=
+eries of reactions and ending up in a lower-energy configuration =E2=80=94 =
+the hydrogen and carbon atoms each bond with oxygen, forming H2O and CO2. T=
+he resulting electron configurations are in lower potential energy wells, w=
+ith much of the difference being released as heat.</span></p><p><span>Lithi=
+um-ion batteries work by using, unsurprisingly, chemical reactions with lit=
+hium. When a lithium-ion battery discharges, lithium ions and their electro=
+ns =E2=80=9Cfall downhill,=E2=80=9D moving from one configuration at the an=
+ode (inserted between sheets of graphite, known as =E2=80=9Cintercalation=
+=E2=80=9D) into a different, lower-energy configuration at the cathode (int=
+ercalated in another material, such as lithium iron phosphate, LiFePO4). Th=
+e battery is structured to capture energy from this reaction. Lithium ions =
+can pass from the anode into the electrolyte, but electrons can=E2=80=99t: =
+they must go around, through a metallic conductor that connects the anode a=
+nd the cathode. This flow of electrons is the electrical current that batte=
+ries generate. (When a battery is charging, the reverse happens: a voltage =
+placed on the conductor forces electrons back uphill into the anode, with l=
+ithium ions flowing back through the electrolyte to keep the charge balance=
+d.)</span><span style=3D"min-width:0;" data-state=3D"closed"><a data-compon=
+ent-name=3D"FootnoteAnchorToDOM" id=3D"footnote-anchor-1" href=3D"#footnote=
+-1" target=3D"_self" class=3D"footnote-anchor">1</a></span></p><div class=
+=3D"captioned-image-container"><figure><a target=3D"_blank" href=3D"https:/=
+/substackcdn.com/image/fetch/$s_!vKRJ!,f_auto,q_auto:good,fl_progressive:st=
+eep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F=
+4e900154-ac91-4154-91fc-f48e8327a902_850x663.png" data-component-name=3D"Im=
+age2ToDOM" class=3D"image-link image2 is-viewable-img can-restack"><div cla=
+ss=3D"image2-inset"><picture><source type=3D"image/webp" srcset=3D"https://=
+substackcdn.com/image/fetch/$s_!vKRJ!,w_424,c_limit,f_webp,q_auto:good,fl_p=
+rogressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpubli=
+c%2Fimages%2F4e900154-ac91-4154-91fc-f48e8327a902_850x663.png 424w, https:/=
+/substackcdn.com/image/fetch/$s_!vKRJ!,w_848,c_limit,f_webp,q_auto:good,fl_=
+progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpubl=
+ic%2Fimages%2F4e900154-ac91-4154-91fc-f48e8327a902_850x663.png 848w, https:=
+//substackcdn.com/image/fetch/$s_!vKRJ!,w_1272,c_limit,f_webp,q_auto:good,f=
+l_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpu=
+blic%2Fimages%2F4e900154-ac91-4154-91fc-f48e8327a902_850x663.png 1272w, htt=
+ps://substackcdn.com/image/fetch/$s_!vKRJ!,w_1456,c_limit,f_webp,q_auto:goo=
+d,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2=
+Fpublic%2Fimages%2F4e900154-ac91-4154-91fc-f48e8327a902_850x663.png 1456w" =
+sizes=3D"100vw"><img src=3D"https://substackcdn.com/image/fetch/$s_!vKRJ!,w=
+_1456,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstac=
+k-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F4e900154-ac91-4154-91fc-f=
+48e8327a902_850x663.png" width=3D"499" height=3D"389.22" data-attrs=3D"{&qu=
+ot;src&quot;:&quot;https://substack-post-media.s3.amazonaws.com/public/imag=
+es/4e900154-ac91-4154-91fc-f48e8327a902_850x663.png&quot;,&quot;srcNoWaterm=
+ark&quot;:null,&quot;fullscreen&quot;:null,&quot;imageSize&quot;:null,&quot=
+;height&quot;:663,&quot;width&quot;:850,&quot;resizeWidth&quot;:499,&quot;b=
+ytes&quot;:null,&quot;alt&quot;:null,&quot;title&quot;:null,&quot;type&quot=
+;:null,&quot;href&quot;:null,&quot;belowTheFold&quot;:true,&quot;topImage&q=
+uot;:false,&quot;internalRedirect&quot;:null,&quot;isProcessing&quot;:false=
+,&quot;align&quot;:null,&quot;offset&quot;:false}" alt=3D"" srcset=3D"https=
+://substackcdn.com/image/fetch/$s_!vKRJ!,w_424,c_limit,f_auto,q_auto:good,f=
+l_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpu=
+blic%2Fimages%2F4e900154-ac91-4154-91fc-f48e8327a902_850x663.png 424w, http=
+s://substackcdn.com/image/fetch/$s_!vKRJ!,w_848,c_limit,f_auto,q_auto:good,=
+fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fp=
+ublic%2Fimages%2F4e900154-ac91-4154-91fc-f48e8327a902_850x663.png 848w, htt=
+ps://substackcdn.com/image/fetch/$s_!vKRJ!,w_1272,c_limit,f_auto,q_auto:goo=
+d,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2=
+Fpublic%2Fimages%2F4e900154-ac91-4154-91fc-f48e8327a902_850x663.png 1272w, =
+https://substackcdn.com/image/fetch/$s_!vKRJ!,w_1456,c_limit,f_auto,q_auto:=
+good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.co=
+m%2Fpublic%2Fimages%2F4e900154-ac91-4154-91fc-f48e8327a902_850x663.png 1456=
+w" sizes=3D"100vw" loading=3D"lazy" class=3D"sizing-normal"></picture><div =
+class=3D"image-link-expand"><div class=3D"pencraft pc-display-flex pc-gap-8=
+ pc-reset"><button tabindex=3D"0" type=3D"button" class=3D"pencraft pc-rese=
+t icon-container restack-image"><svg aria-hidden=3D"true" width=3D"20" heig=
+ht=3D"20" viewBox=3D"0 0 20 20" fill=3D"none" stroke-width=3D"1.5" stroke=
+=3D"var(--color-fg-primary)" stroke-linecap=3D"round" stroke-linejoin=3D"ro=
+und" xmlns=3D"http://www.w3.org/2000/svg"><g><path d=3D"M2.53001 7.81595C3.=
+49179 4.73911 6.43281 2.5 9.91173 2.5C13.1684 2.5 15.9537 4.46214 17.0852 7=
+.23684L17.6179 8.67647M17.6179 8.67647L18.5002 4.26471M17.6179 8.67647L13.6=
+473 6.91176M17.4995 12.1841C16.5378 15.2609 13.5967 17.5 10.1178 17.5C6.861=
+18 17.5 4.07589 15.5379 2.94432 12.7632L2.41165 11.3235M2.41165 11.3235L1.5=
+293 15.7353M2.41165 11.3235L6.38224 13.0882" /></g></svg></button><button t=
+abindex=3D"0" type=3D"button" class=3D"pencraft pc-reset icon-container vie=
+w-image"><svg xmlns=3D"http://www.w3.org/2000/svg" width=3D"20" height=3D"2=
+0" viewBox=3D"0 0 24 24" fill=3D"none" stroke=3D"currentColor" stroke-width=
+=3D"2" stroke-linecap=3D"round" stroke-linejoin=3D"round" class=3D"lucide l=
+ucide-maximize2 lucide-maximize-2"><polyline points=3D"15 3 21 3 21 9" /><p=
+olyline points=3D"9 21 3 21 3 15" /><line x1=3D"21" x2=3D"14" y1=3D"3" y2=
+=3D"10" /><line x1=3D"3" x2=3D"10" y1=3D"21" y2=3D"14" /></svg></button></d=
+iv></div></div></a><figcaption class=3D"image-caption"><span>Lithium ion ba=
+ttery diagram, via </span><a href=3D"https://www.researchgate.net/figure/Th=
+e-principle-of-the-lithium-ion-battery-LiB-showing-the-intercalation-of-lit=
+hium-ions_fig1_344448023">link</a><span>.</span></figcaption></figure></div=
+><p><span>Lithium is a favored choice for a battery because an electron lea=
+ving lithium has farther to fall than an electron leaving any other metal w=
+hen coupled with the appropriate reactant. Lithium is also a very light ato=
+m (an atomic mass of around 7), which, combined with the large =E2=80=9Cdro=
+p,=E2=80=9D means that lithium reactions yield a high amount of energy. Per=
+ unit mass, lithium reactions release roughly as much energy as burning gas=
+oline.</span></p><p><span>But if this is true, why are lithium-ion batterie=
+s so much less energy dense than gasoline?</span></p><div class=3D"captione=
+d-image-container"><figure><a target=3D"_blank" href=3D"https://substackcdn=
+.com/image/fetch/$s_!mjvP!,f_auto,q_auto:good,fl_progressive:steep/https%3A=
+%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F56d57314-dd6=
+d-41df-9287-286251a8dbde_1143x704.png" data-component-name=3D"Image2ToDOM" =
+class=3D"image-link image2 is-viewable-img can-restack"><div class=3D"image=
+2-inset"><picture><source type=3D"image/webp" srcset=3D"https://substackcdn=
+.com/image/fetch/$s_!mjvP!,w_424,c_limit,f_webp,q_auto:good,fl_progressive:=
+steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%=
+2F56d57314-dd6d-41df-9287-286251a8dbde_1143x704.png 424w, https://substackc=
+dn.com/image/fetch/$s_!mjvP!,w_848,c_limit,f_webp,q_auto:good,fl_progressiv=
+e:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimage=
+s%2F56d57314-dd6d-41df-9287-286251a8dbde_1143x704.png 848w, https://substac=
+kcdn.com/image/fetch/$s_!mjvP!,w_1272,c_limit,f_webp,q_auto:good,fl_progres=
+sive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fim=
+ages%2F56d57314-dd6d-41df-9287-286251a8dbde_1143x704.png 1272w, https://sub=
+stackcdn.com/image/fetch/$s_!mjvP!,w_1456,c_limit,f_webp,q_auto:good,fl_pro=
+gressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%=
+2Fimages%2F56d57314-dd6d-41df-9287-286251a8dbde_1143x704.png 1456w" sizes=
+=3D"100vw"><img src=3D"https://substackcdn.com/image/fetch/$s_!mjvP!,w_1456=
+,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-pos=
+t-media.s3.amazonaws.com%2Fpublic%2Fimages%2F56d57314-dd6d-41df-9287-286251=
+a8dbde_1143x704.png" width=3D"1143" height=3D"704" data-attrs=3D"{&quot;src=
+&quot;:&quot;https://substack-post-media.s3.amazonaws.com/public/images/56d=
+57314-dd6d-41df-9287-286251a8dbde_1143x704.png&quot;,&quot;srcNoWatermark&q=
+uot;:null,&quot;fullscreen&quot;:null,&quot;imageSize&quot;:null,&quot;heig=
+ht&quot;:704,&quot;width&quot;:1143,&quot;resizeWidth&quot;:null,&quot;byte=
+s&quot;:55478,&quot;alt&quot;:null,&quot;title&quot;:null,&quot;type&quot;:=
+&quot;image/png&quot;,&quot;href&quot;:null,&quot;belowTheFold&quot;:true,&=
+quot;topImage&quot;:false,&quot;internalRedirect&quot;:&quot;https://www.co=
+nstruction-physics.com/i/209023054?img=3Dhttps%3A%2F%2Fsubstack-post-media.=
+s3.amazonaws.com%2Fpublic%2Fimages%2F56d57314-dd6d-41df-9287-286251a8dbde_1=
+143x704.png&quot;,&quot;isProcessing&quot;:false,&quot;align&quot;:null,&qu=
+ot;offset&quot;:false}" alt=3D"" srcset=3D"https://substackcdn.com/image/fe=
+tch/$s_!mjvP!,w_424,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3=
+A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F56d57314-dd=
+6d-41df-9287-286251a8dbde_1143x704.png 424w, https://substackcdn.com/image/=
+fetch/$s_!mjvP!,w_848,c_limit,f_auto,q_auto:good,fl_progressive:steep/https=
+%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F56d57314-=
+dd6d-41df-9287-286251a8dbde_1143x704.png 848w, https://substackcdn.com/imag=
+e/fetch/$s_!mjvP!,w_1272,c_limit,f_auto,q_auto:good,fl_progressive:steep/ht=
+tps%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F56d573=
+14-dd6d-41df-9287-286251a8dbde_1143x704.png 1272w, https://substackcdn.com/=
+image/fetch/$s_!mjvP!,w_1456,c_limit,f_auto,q_auto:good,fl_progressive:stee=
+p/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F56=
+d57314-dd6d-41df-9287-286251a8dbde_1143x704.png 1456w" sizes=3D"100vw" load=
+ing=3D"lazy" class=3D"sizing-normal"></picture><div class=3D"image-link-exp=
+and"><div class=3D"pencraft pc-display-flex pc-gap-8 pc-reset"><button tabi=
+ndex=3D"0" type=3D"button" class=3D"pencraft pc-reset icon-container restac=
+k-image"><svg aria-hidden=3D"true" width=3D"20" height=3D"20" viewBox=3D"0 =
+0 20 20" fill=3D"none" stroke-width=3D"1.5" stroke=3D"var(--color-fg-primar=
+y)" stroke-linecap=3D"round" stroke-linejoin=3D"round" xmlns=3D"http://www.=
+w3.org/2000/svg"><g><path d=3D"M2.53001 7.81595C3.49179 4.73911 6.43281 2.5=
+ 9.91173 2.5C13.1684 2.5 15.9537 4.46214 17.0852 7.23684L17.6179 8.67647M17=
+.6179 8.67647L18.5002 4.26471M17.6179 8.67647L13.6473 6.91176M17.4995 12.18=
+41C16.5378 15.2609 13.5967 17.5 10.1178 17.5C6.86118 17.5 4.07589 15.5379 2=
+.94432 12.7632L2.41165 11.3235M2.41165 11.3235L1.5293 15.7353M2.41165 11.32=
+35L6.38224 13.0882" /></g></svg></button><button tabindex=3D"0" type=3D"but=
+ton" class=3D"pencraft pc-reset icon-container view-image"><svg xmlns=3D"ht=
+tp://www.w3.org/2000/svg" width=3D"20" height=3D"20" viewBox=3D"0 0 24 24" =
+fill=3D"none" stroke=3D"currentColor" stroke-width=3D"2" stroke-linecap=3D"=
+round" stroke-linejoin=3D"round" class=3D"lucide lucide-maximize2 lucide-ma=
+ximize-2"><polyline points=3D"15 3 21 3 21 9" /><polyline points=3D"9 21 3 =
+21 3 15" /><line x1=3D"21" x2=3D"14" y1=3D"3" y2=3D"10" /><line x1=3D"3" x2=
+=3D"10" y1=3D"21" y2=3D"14" /></svg></button></div></div></div></a><figcapt=
+ion class=3D"image-caption"><span>Energy densities of various batteries and=
+ fuels, via </span><a href=3D"https://en.wikipedia.org/wiki/Energy_density"=
+>Wikipedia</a><span>.</span></figcaption></figure></div><p><span>One big re=
+ason is the oxidizer. The chemical reactions we rely on for energy typicall=
+y require some downhill destination for electrons to end up at, which is kn=
+own as an oxidizer. When burning gasoline, the oxidizer is oxygen in the su=
+rrounding air: inside a gasoline engine, fuel and air are mixed together an=
+d then ignited, triggering the chemical reaction =E2=80=94 an explosion =E2=
+=80=94 that powers the engine. Gasoline-powered cars, in other words, don=
+=E2=80=99t need to carry their oxidizer with them, because there=E2=80=99s =
+always one available in the surroundings.</span></p><p><span>Lithium-ion ba=
+tteries, on the other hand, aren=E2=80=99t so fortunate. They need to carry=
+ their electron destination with them, in the form of the cathode. This add=
+s a lot of extra mass compared to what a gasoline-powered car needs to carr=
+y. If a car needed to carry its own oxidizer with it, it would need about 3=
+.5 kilograms of oxygen for every 1 kilogram of gasoline.</span></p><p><span=
+>More generally, it just requires a lot of material scaffolding to structur=
+e the lithium reaction in a way that lets you extract energy from it in the=
+ form of electric current. At the anode, each lithium ion requires an addit=
+ional six atoms of carbon, forming graphite sheets that the lithium ions ca=
+n nestle into. A similar intercalation structure is required at the cathode=
+. On top of this is the extra mass for the electrolyte, the separator, the =
+current collectors, and so on. As of 2019, every gram of reacting lithium i=
+n a battery required about 70 grams of supporting material (though this num=
+ber has probably fallen somewhat since then).</span></p><div id=3D"datawrap=
+per-iframe" data-attrs=3D"{&quot;url&quot;:&quot;https://datawrapper.dwcdn.=
+net/JW8u6/2/&quot;,&quot;thumbnail_url&quot;:&quot;https://substack-post-me=
+dia.s3.amazonaws.com/public/images/65ca7fc7-9ad9-421f-9900-0688e3e54a94_122=
+0x520.png&quot;,&quot;thumbnail_url_full&quot;:&quot;https://substack-post-=
+media.s3.amazonaws.com/public/images/776cc243-fa21-49d1-8e5d-7a91e0d3696a_1=
+220x742.png&quot;,&quot;height&quot;:361,&quot;title&quot;:&quot;Lithium-io=
+n Battery Mass Requirements&quot;,&quot;description&quot;:&quot;Mass requir=
+ed per gram of cycled lithium, circa 2019.&quot;}" data-component-name=3D"D=
+atawrapperToDOM" class=3D"datawrapper-wrap outer"><iframe id=3D"iframe-data=
+wrapper" src=3D"https://datawrapper.dwcdn.net/JW8u6/2/" width=3D"730" heigh=
+t=3D"361" frameborder=3D"0" scrolling=3D"no" class=3D"datawrapper-iframe"><=
+/iframe><script type=3D"text/javascript">!function(){"use strict";window.ad=
+dEventListener("message",(function(e){if(void 0!=3D=3De.data["datawrapper-h=
+eight"]){var t=3Ddocument.querySelectorAll("iframe");for(var a in e.data["d=
+atawrapper-height"])for(var r=3D0;r<t.length;r++){if(t[r].contentWindow=3D=
+=3D=3De.source)t[r].style.height=3De.data["datawrapper-height"][a]+"px"}}})=
+)}();</script></div><p><span>Without this material scaffolding, the reactio=
+n can still take place, but in a non-useful way. If something creates a dir=
+ect path between the cathode and the anode, the reaction will run nearly in=
+stantly, creating a lot of heat and triggering other chemical reactions tha=
+t will destroy the battery, but no useful electric current. Modern battery =
+design, in fact, takes a lot of effort to prevent these runaway reactions f=
+rom taking place.</span></p><p><span>The benefit of all this material scaff=
+olding, of course, is that you can use the same chemicals for the reaction =
+over and over again. The intercalating electrodes on modern lithium-ion bat=
+teries in particular are very good at this; because the electrode structure=
+ is maintained when the battery charges/discharges, lithium-ion batteries c=
+an be used for very large numbers of cycles while maintaining most of their=
+ capacity. When you burn gasoline, on the other hand, you=E2=80=99re discha=
+rging the products of the reaction continuously (which, of course, is the w=
+hole reason we want to switch away from fossil fuels in the first place, to=
+ stop the discharged CO2 from building up in the atmosphere). You could, th=
+eoretically, dispose of the lithium-ion battery=E2=80=99s scaffolding by ha=
+ving some sort of lithium-based internal combustion engine, but this would =
+work terribly and be outrageously expensive to run (though some people are =
+interested in using oxygen in the air as a battery oxidizer with </span><a =
+href=3D"https://en.wikipedia.org/wiki/Lithium%E2%80%93air_battery"><span>li=
+thium-air batteries</span></a><span>).</span></p><h4 class=3D"header-anchor=
+-post"><span>The promise of solid-state batteries</span><div class=3D"pencr=
+aft pc-display-flex pc-alignItems-center pc-position-absolute pc-reset head=
+er-anchor-parent"><div class=3D"pencraft pc-display-contents pc-reset pubTh=
+eme-yiXxQA"><div id=3D"=C2=A7the-promise-of-solid-state-batteries" class=3D=
+"pencraft pc-reset header-anchor offset-top"></div><button tabindex=3D"0" t=
+ype=3D"button" aria-label=3D"Link" data-href=3D"https://www.construction-ph=
+ysics.com/i/209023054/the-promise-of-solid-state-batteries" class=3D"pencra=
+ft pc-reset iconButton-mq_Et5 iconButtonBase-dJGHgN buttonBase-GK1x3M butto=
+nStyle-r7yGCK size_sm-G3LciD priority_secondary-S63h9o"><svg xmlns=3D"http:=
+//www.w3.org/2000/svg" width=3D"18" height=3D"18" viewBox=3D"0 0 24 24" fil=
+l=3D"none" stroke=3D"currentColor" stroke-width=3D"2" stroke-linecap=3D"rou=
+nd" stroke-linejoin=3D"round" class=3D"lucide lucide-link"><path d=3D"M10 1=
+3a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" /><path d=3D"M14 11=
+a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" /></svg></button></=
+div></div></h4><p><span>The major potential benefit of solid-state batterie=
+s is a substantial reduction in this material scaffolding.</span></p><p><sp=
+an>A pernicious issue with current lithium-ion batteries is dendrites. As w=
+e=E2=80=99ve noted, at the anode, lithium ions are nestled between sheets o=
+f graphite. But the anode holds the lithium ions very loosely, only slightl=
+y better than metallic lithium does. This is useful, because ions can easil=
+y migrate into the electrolyte, thus letting the battery work, but it=E2=80=
+=99s a double-edged sword: under the right conditions, the lithium ions tha=
+t are supposed to enter the anode during charging might instead acquire an =
+electron at the surface of the anode, forming tree-shaped structures of met=
+allic lithium called dendrites, instead of nestling between the sheets of g=
+raphite. If a dendrite pierces the separator between the anode and the cath=
+ode, it creates a direct path between the two, letting that runaway reactio=
+n that batteries are designed to prevent take place. (This doesn=E2=80=99t =
+immediately react all the lithium in the battery =E2=80=94 as electric curr=
+ent flows through the dendrite, the dendrite heats up, eventually melting a=
+nd breaking the path =E2=80=94 but the heat from the brief reaction can be =
+enough to trigger other chemical reactions, resulting in thermal runaway an=
+d destroying the battery.) A great deal of battery development effort is de=
+voted to preventing these dendrites from forming.</span></p><div class=3D"c=
+aptioned-image-container"><figure><a target=3D"_blank" href=3D"https://subs=
+tackcdn.com/image/fetch/$s_!Fy29!,f_auto,q_auto:good,fl_progressive:steep/h=
+ttps%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F0dfa2=
+dd2-1c76-45f2-8618-b2ff6c8f97c2_250x176.png" data-component-name=3D"Image2T=
+oDOM" class=3D"image-link image2 can-restack"><div class=3D"image2-inset"><=
+picture><source type=3D"image/webp" srcset=3D"https://substackcdn.com/image=
+/fetch/$s_!Fy29!,w_424,c_limit,f_webp,q_auto:good,fl_progressive:steep/http=
+s%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F0dfa2dd2=
+-1c76-45f2-8618-b2ff6c8f97c2_250x176.png 424w, https://substackcdn.com/imag=
+e/fetch/$s_!Fy29!,w_848,c_limit,f_webp,q_auto:good,fl_progressive:steep/htt=
+ps%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F0dfa2dd=
+2-1c76-45f2-8618-b2ff6c8f97c2_250x176.png 848w, https://substackcdn.com/ima=
+ge/fetch/$s_!Fy29!,w_1272,c_limit,f_webp,q_auto:good,fl_progressive:steep/h=
+ttps%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F0dfa2=
+dd2-1c76-45f2-8618-b2ff6c8f97c2_250x176.png 1272w, https://substackcdn.com/=
+image/fetch/$s_!Fy29!,w_1456,c_limit,f_webp,q_auto:good,fl_progressive:stee=
+p/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F0d=
+fa2dd2-1c76-45f2-8618-b2ff6c8f97c2_250x176.png 1456w" sizes=3D"100vw"><img =
+src=3D"https://substackcdn.com/image/fetch/$s_!Fy29!,w_1456,c_limit,f_auto,=
+q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazo=
+naws.com%2Fpublic%2Fimages%2F0dfa2dd2-1c76-45f2-8618-b2ff6c8f97c2_250x176.p=
+ng" width=3D"250" height=3D"176" data-attrs=3D"{&quot;src&quot;:&quot;https=
+://substack-post-media.s3.amazonaws.com/public/images/0dfa2dd2-1c76-45f2-86=
+18-b2ff6c8f97c2_250x176.png&quot;,&quot;srcNoWatermark&quot;:null,&quot;ful=
+lscreen&quot;:null,&quot;imageSize&quot;:null,&quot;height&quot;:176,&quot;=
+width&quot;:250,&quot;resizeWidth&quot;:null,&quot;bytes&quot;:null,&quot;a=
+lt&quot;:null,&quot;title&quot;:null,&quot;type&quot;:null,&quot;href&quot;=
+:null,&quot;belowTheFold&quot;:true,&quot;topImage&quot;:false,&quot;intern=
+alRedirect&quot;:null,&quot;isProcessing&quot;:false,&quot;align&quot;:null=
+,&quot;offset&quot;:false}" alt=3D"" srcset=3D"https://substackcdn.com/imag=
+e/fetch/$s_!Fy29!,w_424,c_limit,f_auto,q_auto:good,fl_progressive:steep/htt=
+ps%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F0dfa2dd=
+2-1c76-45f2-8618-b2ff6c8f97c2_250x176.png 424w, https://substackcdn.com/ima=
+ge/fetch/$s_!Fy29!,w_848,c_limit,f_auto,q_auto:good,fl_progressive:steep/ht=
+tps%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F0dfa2d=
+d2-1c76-45f2-8618-b2ff6c8f97c2_250x176.png 848w, https://substackcdn.com/im=
+age/fetch/$s_!Fy29!,w_1272,c_limit,f_auto,q_auto:good,fl_progressive:steep/=
+https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F0dfa=
+2dd2-1c76-45f2-8618-b2ff6c8f97c2_250x176.png 1272w, https://substackcdn.com=
+/image/fetch/$s_!Fy29!,w_1456,c_limit,f_auto,q_auto:good,fl_progressive:ste=
+ep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F0=
+dfa2dd2-1c76-45f2-8618-b2ff6c8f97c2_250x176.png 1456w" sizes=3D"100vw" load=
+ing=3D"lazy" class=3D"sizing-normal"></picture><div></div></div></a><figcap=
+tion class=3D"image-caption"><span>Dendrite growth, via </span><a href=3D"h=
+ttps://en.wikipedia.org/wiki/Solid-state_battery">Wikipedia</a><span>.</spa=
+n></figcaption></figure></div><p><span>If, however, the liquid electrolyte =
+were replaced with some sort of solid material, these dendrites might stop =
+being a problem.</span><span style=3D"min-width:0;" data-state=3D"closed"><=
+a data-component-name=3D"FootnoteAnchorToDOM" id=3D"footnote-anchor-2" href=
+=3D"#footnote-2" target=3D"_self" class=3D"footnote-anchor">2</a></span><sp=
+an> With a strong, solid electrolyte, dendrites wouldn=E2=80=99t (in theory=
+) be able to make their way through it, though with current solid electroly=
+tes dendrites still seem to find their way through. And if the risk of dend=
+rites were eliminated, you could switch to a different anode, dispensing wi=
+th the graphite intercalating structure entirely, using an anode of pure li=
+thium metal.</span><span style=3D"min-width:0;" data-state=3D"closed"><a da=
+ta-component-name=3D"FootnoteAnchorToDOM" id=3D"footnote-anchor-3" href=3D"=
+#footnote-3" target=3D"_self" class=3D"footnote-anchor">3</a></span><span> =
+And because the solid material would eliminate the flammable electrolyte, t=
+he resulting battery might be safer as well.</span></p><p><span>Solid-state=
+ batteries probably aren=E2=80=99t imminent =E2=80=94 the chairman of CATL =
+</span><a href=3D"https://electrek.co/2026/06/25/catl-solid-state-battery-l=
+evel-4-2030/"><span>ranks them as 4 out of 9</span></a><span> on the techno=
+logical readiness scale, and has indicated that commercial viability =E2=80=
+=9Chas yet to be established.=E2=80=9D But the expectation that </span><a h=
+ref=3D"https://www.pnas.org/doi/10.1073/pnas.2425219121"><span>they could b=
+e</span></a><span> =E2=80=9C[p]otentially safer, more energy dense, and per=
+haps eventually cheaper than today=E2=80=99s batteries=E2=80=9D is pushing =
+manufacturers around the world to try and make them happen.</span></p><p><e=
+m><span>Thanks to Austin Vernon for reading a draft of this. All errors are=
+ my own.</span></em></p><div data-component-name=3D"FootnoteToDOM" class=3D=
+"footnote"><a id=3D"footnote-1" href=3D"#footnote-anchor-1" contenteditable=
+=3D"false" target=3D"_self" class=3D"footnote-number">1</a><div class=3D"fo=
+otnote-content"><p>The reason that electrons migrate during discharge is so=
+mewhat complex. At the anode, lithium ions migrate into the electrolyte, be=
+cause the electrolyte is a more appealing location with a lower potential e=
+nergy well. At the cathode, the reverse occurs; lithium ions migrate from t=
+he electrolyte into the cathode. At each electrode, this creates a net char=
+ge which generates an electric field, which stops further migration. But be=
+cause you now have a net negative charge at the anode interface (since posi=
+tively charged lithium ions have left) and a net positive charge at the cat=
+hode interface (because positively charged lithium ions have entered), elec=
+trons flow between the two electrodes when they=E2=80=99re connected by a c=
+onductor to equalize the charges. But because each arriving electron is pai=
+red with an arriving lithium ion, the charge differences between the anode =
+and the cathode don=E2=80=99t equalize, letting current flow continuously u=
+ntil there=E2=80=99s no more room for lithium ions in the cathode or no mor=
+e lithium ions left in the anode (though most batteries have a cutoff that =
+stops current flowing when the voltage drops below some level).</p></div></=
+div><div data-component-name=3D"FootnoteToDOM" class=3D"footnote"><a id=3D"=
+footnote-2" href=3D"#footnote-anchor-2" contenteditable=3D"false" target=3D=
+"_self" class=3D"footnote-number">2</a><div class=3D"footnote-content"><p>I=
+n a crystalline solid electrolyte, lithium ions migrate through it by hoppi=
+ng from one vacancy in a solid crystal lattice to the next. Thanks to their=
+ thermal energy, the ions vibrate back and forth trillions of times per sec=
+ond, and occasionally a vibration will have enough energy and be in the cor=
+rect direction to squeeze past the surrounding atoms into a nearby vacancy.=
+</p></div></div><div data-component-name=3D"FootnoteToDOM" class=3D"footnot=
+e"><a id=3D"footnote-3" href=3D"#footnote-anchor-3" contenteditable=3D"fals=
+e" target=3D"_self" class=3D"footnote-number">3</a><div class=3D"footnote-c=
+ontent"><p><span>A company in the 1980s, Moli Energy, tried to make lithium=
+ batteries with lithium metal anodes but gave up after dendrite problems ca=
+used their batteries to catch fire, requiring a </span><a href=3D"https://e=
+lectricautonomy.ca/ev-supply-chain/batteries/2020-09-18/moli-energy-lithium=
+-battery-technology/">massive recall</a><span>.</span></p></div></div></div=
+>
+--b1_0d4c8e5f2a7b41d6a9c3e8f10b62d745--

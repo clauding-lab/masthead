@@ -316,7 +316,7 @@ describe('sanitizeEmailHtml', () => {
     expect(out).toContain('noopener');
   });
   it('strips NUL characters (Postgres rejects them)', () => {
-    expect(sanitizeEmailHtml('a b')).not.toContain(' ');
+    expect(sanitizeEmailHtml('ab')).not.toContain('');
   });
   it('returns empty string for null/empty input', () => {
     expect(sanitizeEmailHtml(null)).toBe('');
@@ -375,7 +375,7 @@ const OPTIONS = {
 
 export function sanitizeEmailHtml(html) {
   if (!html) return '';
-  return sanitizeHtml(String(html).replace(/ /g, ''), OPTIONS);
+  return sanitizeHtml(String(html).replace(//g, ''), OPTIONS);
 }
 ```
 
@@ -437,7 +437,7 @@ describe('parseEmail', () => {
 });
 ```
 
-- [ ] **Step 4: Run — FAIL. Step 5: Implement** — `PostalMime.parse(raw)`; take html/text/subject/from/messageId/date/headers; `webUrl`: `List-Post` header `<https://…>` value else first anchor whose text matches `/view.*(online|browser)/i`, https-only, ≤4000 chars, else null; `unsubscribeUrl`: parse `List-Unsubscribe` header's comma-separated `<…>` entries, prefer first `https:`, else first `mailto:`, else null; `authResults` from `Authentication-Results` header (first 2000 chars) else null; clamp fromEmail 320 / fromName 200 / subject 500 with control chars stripped (`/[ -]/g`); wrap `PostalMime.parse` in try/catch → null. **Step 6: PASS. Commit: `feat(3a): MIME parsing with dedupe-key fallback and real fixtures`**
+- [ ] **Step 4: Run — FAIL. Step 5: Implement** — `PostalMime.parse(raw)`; take html/text/subject/from/messageId/date/headers; `webUrl`: `List-Post` header `<https://…>` value else first anchor whose text matches `/view.*(online|browser)/i`, https-only, ≤4000 chars, else null; `unsubscribeUrl`: parse `List-Unsubscribe` header's comma-separated `<…>` entries, prefer first `https:`, else first `mailto:`, else null; `authResults` from `Authentication-Results` header (first 2000 chars) else null; clamp fromEmail 320 / fromName 200 / subject 500 with control chars stripped (`/[\u0000-\u001f\u007f]/g`); wrap `PostalMime.parse` in try/catch → null. **Step 6: PASS. Commit: `feat(3a): MIME parsing with dedupe-key fallback and real fixtures`**
 
 ### Task 6: `lib/inboxRepo.js` (service-role data access) + security boundary
 

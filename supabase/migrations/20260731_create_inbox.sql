@@ -64,6 +64,27 @@ create trigger user_inbox_messages_quota
   before insert on public.user_inbox_messages
   for each row execute function public.enforce_inbox_quota();
 
+-- Un-delete is forbidden (spec §4.2): the deleted_at column grant would
+-- otherwise let a client resurrect tombstoned rows past the quota with no
+-- trigger on the UPDATE path. The product has no restore feature.
+create or replace function public.forbid_inbox_undelete()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if old.deleted_at is not null and new.deleted_at is null then
+    raise exception 'undelete is not permitted' using errcode = 'P0001';
+  end if;
+  return new;
+end;
+$$;
+
+create trigger user_inbox_messages_no_undelete
+  before update of deleted_at on public.user_inbox_messages
+  for each row execute function public.forbid_inbox_undelete();
+
 -- Custody (landmines 5 + 12: this project auto-grants via pg_default_acl —
 -- explicit revokes are mandatory, and PUBLIC must be named).
 alter table public.user_ingest_addresses enable row level security;
@@ -79,3 +100,4 @@ create policy inbox_messages_update_own on public.user_inbox_messages
   for update to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 revoke all on function public.enforce_inbox_quota() from anon, authenticated, public;
+revoke all on function public.forbid_inbox_undelete() from anon, authenticated, public;

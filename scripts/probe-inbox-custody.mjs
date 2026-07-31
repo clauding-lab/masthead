@@ -6,6 +6,12 @@
 // concurrent-cap test (8 parallel inserts -> exactly 5 rows) and the
 // byte-equality check.
 //
+// All optional-block inserts use a dedupe_key under PROBE_PREFIX (below), and
+// every cleanup delete is scoped to that prefix — never a bare
+// `user_id=eq.<PROBE_USER_ID>` delete. PROBE_USER_ID is expected to be a real
+// (or reusable test) account; a bare user_id delete would wipe that account's
+// entire inbox if the probe is ever re-run against a real user post-launch.
+//
 // Authenticated-role probes (a signed-in user reading/updating their own
 // rows) require a real user JWT this script cannot mint. Per 2E precedent,
 // they are skipped here with documented compensating evidence: the RLS
@@ -18,6 +24,8 @@
 //   select grantee, privilege_type, column_name from information_schema.column_privileges
 //     where table_name = 'user_inbox_messages' and grantee = 'authenticated';
 import { readFileSync } from 'node:fs';
+
+const PROBE_PREFIX = 'inbox-probe-';
 
 function env(name) {
   const fromEnv = process.env[name];
@@ -56,16 +64,25 @@ await expectDenied('anon INSERT messages', 'POST', 'user_inbox_messages', { user
 await expectDenied('anon UPDATE messages', 'PATCH', 'user_inbox_messages?id=eq.00000000-0000-0000-0000-000000000000', { read_at: new Date().toISOString() });
 await expectDenied('anon DELETE messages', 'DELETE', 'user_inbox_messages?id=eq.00000000-0000-0000-0000-000000000000');
 
-// enforce_inbox_quota: revoked from anon/authenticated/public, not exposed as an RPC anon can call.
+// enforce_inbox_quota / forbid_inbox_undelete: revoked from anon/authenticated/public,
+// not exposed as an RPC anon can call.
 await expectDenied('anon RPC enforce_inbox_quota', 'POST', 'rpc/enforce_inbox_quota', {});
+await expectDenied('anon RPC forbid_inbox_undelete', 'POST', 'rpc/forbid_inbox_undelete', {});
 
 const service = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const probeUser = process.env.PROBE_USER_ID;
 if (service && probeUser) {
   const hdr = { apikey: service, Authorization: `Bearer ${service}`, 'Content-Type': 'application/json' };
-  await fetch(`${url}/rest/v1/user_inbox_messages?user_id=eq.${probeUser}`, { method: 'DELETE', headers: hdr });
+  const cleanupProbeRows = () =>
+    fetch(`${url}/rest/v1/user_inbox_messages?user_id=eq.${probeUser}&dedupe_key=like.${PROBE_PREFIX}*`, { method: 'DELETE', headers: hdr });
+
+  // Pre-clean any probe rows left by a previous crashed/interrupted run.
+  // Scoped to PROBE_PREFIX only — never a bare user_id delete (would wipe a
+  // real inbox if PROBE_USER_ID is reused post-launch).
+  await cleanupProbeRows();
 
   // (a) concurrency: 8 parallel inserts declaring 20 MB each -> exactly 5 land (5x20MB = 100MB cap).
+  const capDedupeKey = (i) => `${PROBE_PREFIX}cap-${i}`;
   const inserts = Array.from({ length: 8 }, (_, i) =>
     fetch(`${url}/rest/v1/user_inbox_messages`, {
       method: 'POST', headers: hdr,
@@ -73,43 +90,59 @@ if (service && probeUser) {
         user_id: probeUser,
         from_email: 'cap-test@example.com',
         size_bytes: 20000000,
-        dedupe_key: `cap-test-${i}`,
+        dedupe_key: capDedupeKey(i),
       }),
     })
   );
   await Promise.all(inserts);
-  const rows = await (await fetch(`${url}/rest/v1/user_inbox_messages?user_id=eq.${probeUser}&select=id&dedupe_key=like.cap-test-*`, { headers: hdr })).json();
+  const rows = await (await fetch(`${url}/rest/v1/user_inbox_messages?user_id=eq.${probeUser}&select=id&dedupe_key=like.${PROBE_PREFIX}cap-*`, { headers: hdr })).json();
   const capPass = rows.length === 5;
   console.log(`${capPass ? 'PASS' : 'FAIL'} concurrent cap: ${rows.length}/8 inserts landed (want exactly 5)`);
   if (!capPass) failures++;
-  await fetch(`${url}/rest/v1/user_inbox_messages?user_id=eq.${probeUser}&dedupe_key=like.cap-test-*`, { method: 'DELETE', headers: hdr });
+  await fetch(`${url}/rest/v1/user_inbox_messages?user_id=eq.${probeUser}&dedupe_key=like.${PROBE_PREFIX}cap-*`, { method: 'DELETE', headers: hdr });
 
-  // (b) byte equality: insert one row with a multi-byte body, read back sum(size_bytes),
-  // assert exact match against Buffer.byteLength of the same string.
-  const multiByteBody = 'inbox probe éèê 中文 📬';
-  const declaredBytes = Buffer.byteLength(multiByteBody, 'utf8');
+  // (b) byte equality: two INDEPENDENT producers of the byte count, not one
+  // value compared to itself. Producer A: Buffer.byteLength, computed
+  // client-side BEFORE the insert, over the ORIGINAL in-memory strings — this
+  // is what a real ingest path would compute for size_bytes. Producer B:
+  // TextEncoder (a different JS API/implementation than Buffer) applied
+  // AFTER a full round trip — html_body/text_body are fetched back from
+  // Postgres and re-measured, so this also catches storage-side truncation
+  // or corruption of multi-byte UTF-8 content. PostgREST's `select=` cannot
+  // express `octet_length(...)` without a schema-defined computed-column
+  // function (which Step 1's SQL does not define), so this fetch-and-remeasure
+  // approach is the RPC-free workaround.
+  const htmlBody = '<p>inbox probe éèê 中文 📬</p>';
+  const textBody = 'inbox probe éèê 中文 📬 plain text';
+  const clientBytes = Buffer.byteLength(htmlBody, 'utf8') + Buffer.byteLength(textBody, 'utf8');
+  const byteDedupeKey = `${PROBE_PREFIX}byte-1`;
   await fetch(`${url}/rest/v1/user_inbox_messages`, {
     method: 'POST', headers: hdr,
     body: JSON.stringify({
       user_id: probeUser,
       from_email: 'byte-test@example.com',
-      text_body: multiByteBody,
-      size_bytes: declaredBytes,
-      dedupe_key: 'byte-test-1',
+      html_body: htmlBody,
+      text_body: textBody,
+      size_bytes: clientBytes,
+      dedupe_key: byteDedupeKey,
     }),
   });
-  const sumRes = await fetch(
-    `${url}/rest/v1/user_inbox_messages?user_id=eq.${probeUser}&dedupe_key=eq.byte-test-1&select=size_bytes`,
+  const fetchRes = await fetch(
+    `${url}/rest/v1/user_inbox_messages?user_id=eq.${probeUser}&dedupe_key=eq.${byteDedupeKey}&select=html_body,text_body`,
     { headers: hdr }
   );
-  const sumRows = await sumRes.json();
-  const storedBytes = sumRows.reduce((acc, r) => acc + r.size_bytes, 0);
-  const bytePass = storedBytes === declaredBytes;
-  console.log(`${bytePass ? 'PASS' : 'FAIL'} byte equality: stored ${storedBytes} vs Buffer.byteLength ${declaredBytes}`);
+  const [fetchedRow] = await fetchRes.json();
+  const encoder = new TextEncoder();
+  const serverMeasure = fetchedRow
+    ? encoder.encode(fetchedRow.html_body).length + encoder.encode(fetchedRow.text_body).length
+    : null;
+  const bytePass = serverMeasure === clientBytes;
+  console.log(`${bytePass ? 'PASS' : 'FAIL'} byte equality: server (TextEncoder, round-tripped) ${serverMeasure} vs client (Buffer.byteLength, pre-insert) ${clientBytes}`);
   if (!bytePass) failures++;
 
-  // (c) cleanup: delete all probe rows for this user.
-  await fetch(`${url}/rest/v1/user_inbox_messages?user_id=eq.${probeUser}`, { method: 'DELETE', headers: hdr });
+  // (c) cleanup: delete only probe rows (PROBE_PREFIX-scoped), never the
+  // user's whole inbox.
+  await cleanupProbeRows();
 } else {
   console.log('SKIP concurrent cap + byte equality tests (set SUPABASE_SERVICE_ROLE_KEY + PROBE_USER_ID to run)');
 }

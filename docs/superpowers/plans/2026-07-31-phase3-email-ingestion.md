@@ -104,6 +104,27 @@ create trigger user_inbox_messages_quota
   before insert on public.user_inbox_messages
   for each row execute function public.enforce_inbox_quota();
 
+-- Un-delete is forbidden (spec §4.2): the deleted_at column grant would
+-- otherwise let a client resurrect tombstoned rows past the quota with no
+-- trigger on the UPDATE path. The product has no restore feature.
+create or replace function public.forbid_inbox_undelete()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if old.deleted_at is not null and new.deleted_at is null then
+    raise exception 'undelete is not permitted' using errcode = 'P0001';
+  end if;
+  return new;
+end;
+$$;
+
+create trigger user_inbox_messages_no_undelete
+  before update of deleted_at on public.user_inbox_messages
+  for each row execute function public.forbid_inbox_undelete();
+
 -- Custody (landmines 5 + 12: this project auto-grants via pg_default_acl —
 -- explicit revokes are mandatory, and PUBLIC must be named).
 alter table public.user_ingest_addresses enable row level security;
@@ -119,13 +140,14 @@ create policy inbox_messages_update_own on public.user_inbox_messages
   for update to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 revoke all on function public.enforce_inbox_quota() from anon, authenticated, public;
+revoke all on function public.forbid_inbox_undelete() from anon, authenticated, public;
 ```
 
 - [ ] **Step 2: Write `scripts/probe-inbox-custody.mjs`** — copy the structure of `scripts/probe-premium-custody.mjs` (env loader, `expectDenied`, exit code) and probe:
   - anon SELECT/INSERT/UPDATE/DELETE on `user_ingest_addresses` → all denied
   - anon SELECT/INSERT/DELETE on `user_inbox_messages` → denied; anon UPDATE → denied
   - anon RPC `enforce_inbox_quota` → denied (POST `rest/v1/rpc/enforce_inbox_quota`, expect 401/404)
-  - Optional block behind `SUPABASE_SERVICE_ROLE_KEY` + `PROBE_USER_ID` (2E pattern): (a) concurrency — insert a 60 KB-size row 8× in parallel after seeding 498 rows is impractical; instead insert 8 parallel rows each with `size_bytes: 20000000` (20 MB declared) → exactly 5 land (5×20 MB = 100 MB cap); (b) byte equality — insert one row with a multi-byte body via service role, read back `sum(size_bytes)`, assert exact match with the number printed by `node -e` using `Buffer.byteLength`; (c) cleanup deletes probe rows.
+  - Optional block behind `SUPABASE_SERVICE_ROLE_KEY` + `PROBE_USER_ID` (2E pattern): (a) concurrency — insert a 60 KB-size row 8× in parallel after seeding 498 rows is impractical; instead insert 8 parallel rows each with `size_bytes: 20000000` (20 MB declared) → exactly 5 land (5×20 MB = 100 MB cap); (b) byte equality — insert one row with a multi-byte body via service role, then read back the SERVER-side measure (`octet_length(html_body) + octet_length(text_body)` via a select on those expressions, or PostgREST's computed select) and assert it equals the `Buffer.byteLength` number computed client-side BEFORE the insert — the two sides must be independent producers or the check is `x === x` and vacuous; (c) EVERY cleanup delete is scoped to probe rows only (`dedupe_key=like.<probe-prefix>*`) — never a bare `user_id=eq.` delete, which would destroy the probe user's real inbox when an owner re-runs the probe post-launch.
   - Authenticated-role probes require a user JWT the probe cannot mint (2E precedent: skipped with documented compensating evidence — the RLS policies + column grants are read back by the agent post-migration instead).
 
 - [ ] **Step 3: Run `npm test` (must stay 358 green — nothing imports these yet), `npx eslint scripts` (zero new)**

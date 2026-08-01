@@ -111,6 +111,20 @@ describe('verdictFromResponse — §3 verdict rows (authenticated, x-masthead-in
       action: 'defer',
     });
   });
+
+  it('our header + an accepted-shaped code but a 500 status -> defer, never accept on code alone', () => {
+    // Pins the status conjunct in the accept branch: an accept-looking code
+    // is not sufficient by itself, the status must actually be 2xx too.
+    expect(verdictFromResponse(500, OUR_HEADERS, { code: 'accepted' })).toEqual({
+      action: 'defer',
+    });
+  });
+
+  it('our header + an accepted-shaped code but a 404 status -> defer, never accept on code alone', () => {
+    expect(verdictFromResponse(404, OUR_HEADERS, { code: 'accepted' })).toEqual({
+      action: 'defer',
+    });
+  });
 });
 
 describe('verdictFromResponse — foreign-response protection (spec §3 verdict authentication)', () => {

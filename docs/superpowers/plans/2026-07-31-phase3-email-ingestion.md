@@ -451,7 +451,7 @@ describe('parseEmail', () => {
 - `inboxRepo.js` (all via `getAdminClient()`, every call checks `{ error }` — landmine 11; DB errors throw `InboxRepoError`):
   - `findAddressBySlug(slug) -> { id, userId, overQuotaSince } | null`
   - `getAddressRow(userId) -> { address row } | null`
-  - `ensureAddress(userId) -> row` (INSERT … ON CONFLICT (user_id) DO UPDATE SET slug = excluded.slug WHERE user_ingest_addresses.slug IS NULL, then re-select — via two calls: upsert with `ignoreDuplicates: false` won't express the WHERE, so: select → if row with slug return it → else upsert-with-slug and on unique-violation retry `generateSlug` up to 3×)
+  - `ensureAddress(userId) -> row` (semantics of INSERT … ON CONFLICT (user_id) DO UPDATE SET slug = excluded.slug WHERE user_ingest_addresses.slug IS NULL, preserved race-free: select → if row with slug return it → if row with null slug, `.update({ slug }).eq('user_id', userId).is('slug', null).select(…).maybeSingle()` — a null result means a concurrent caller won, so re-select and return the winner's row → if no row, plain `.insert()`; on user_id unique-violation (23505) a concurrent insert won, re-select; on slug unique-violation retry `generateSlug` up to 3×. Never an unguarded upsert — two concurrent calls must both end up returning the single slug the DB actually holds)
   - `rotateSlug(userId) -> row` (UPDATE slug = new; retry on unique violation ×3)
   - `disableSlug(userId) -> void` (UPDATE slug = null)
   - `quotaSnapshot(userId) -> { messageCount, bytesUsed }` (one select: `count`, `sum(size_bytes)` over live rows — use `.select('size_bytes')` + reduce, or a `count(head)` + a sum select; two queries acceptable)

@@ -39,7 +39,7 @@ docs/superpowers/      specs + plans (e.g. the Phase 1 Harden spec/plan)
 | Frontend only | `npm run dev:frontend` |
 | Local API server only | `npm run dev:api` |
 | Build for release | `npm run build` (includes `scripts/check-bundle.mjs` service-role leak scan) |
-| Unit tests (vitest, 560 tests as of 3A, incl. `api/**`) | `npm test` |
+| Unit tests (vitest, 565 tests as of 3A, incl. `api/**`) | `npm test` |
 | Tests, watch mode | `npm run test:watch` |
 | Lint (baseline: 3 pre-existing errors + 5 warnings, all in `src/`; zero NEW is the gate) | `npx eslint src lib api server.js scripts email-worker` |
 | Catalog feed health — manual, pre-merge, deliberately NOT in CI (36 network calls) | `npm run verify-catalog` |

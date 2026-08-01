@@ -506,7 +506,8 @@ describe('parseEmail', () => {
 //     and sanitizeEmailHtml covers html only
 // 17. unknown-recipient metering (spec §5 red-team: per-slug keys meter nothing an attacker
 //     cares about — without this, slug-enumeration probes 404 before touching any limiter):
-//     an unknown slug consumes global bucket 'inbox:unknown' (120/hr); when that bucket
+//     every 404-producing path (unknown slug AND wrong-domain envelope) consumes global
+//     bucket 'inbox:unknown' (120/hr); when that bucket
 //     denies -> { status: 429, code: 'rate_limited' } instead of 404 (no enumeration
 //     feedback, transient so the Worker defers); known-slug traffic never touches this bucket
 ```

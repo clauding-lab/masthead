@@ -13,10 +13,17 @@ class RawBodyTooLargeError extends Error {}
 // the stream-accumulation promise would hang until maxDuration (30s), with
 // no [ingest] log line to diagnose from. The Worker always sends
 // application/octet-stream (never one of those content-types), so this only
-// fires for malformed/unexpected traffic — treated the same way ingestEmail
-// treats content it can't turn into a raw email: a clean, settled 4xx
-// verdict, never a hang (any settled response with the header beats a
-// timeout).
+// fires for malformed/unexpected traffic.
+//
+// This is an INFRASTRUCTURE condition, not a deterministic property of the
+// message — never map it to a permanent-bounce code (`unparseable`/422 is
+// in the Worker's REJECT_CODES). If the runtime ever systemically changed
+// how it hands us octet-stream bodies, that would hit every legitimate
+// newsletter, and the binding posture is "no failure mode may permanently
+// bounce legitimate mail on an infra fault — transient conditions defer."
+// The pre-fix hang at least produced a Worker timeout → defer → sender
+// retry; this settles the same way on purpose (transient 500), just without
+// burning the full maxDuration to get there.
 class RawBodyUnavailableError extends Error {}
 
 // Vercel only parses the body when content-type says so; the Worker sends
@@ -93,10 +100,13 @@ export default async function handler(req, res) {
       return res.status(413).json({ code: 'message_too_large' });
     }
     if (err instanceof RawBodyUnavailableError) {
-      // The Worker never sends a pre-parseable content-type, so this is
-      // malformed/unexpected traffic, not a raw email — same verdict
-      // ingestEmail itself uses for content it can't process.
-      return res.status(422).json({ code: 'unparseable' });
+      // Transient, never a permanent bounce (see the class comment above):
+      // this is an infra condition, not a deterministic property of the
+      // message. Same code the generic 500 path below uses — no new code
+      // vocabulary — but its own log line so an operator can tell "the
+      // runtime stopped handing us Buffers" apart from a generic failure.
+      console.error('[inbox-ingest] raw body unavailable (pre-parsed or consumed stream)');
+      return res.status(500).json({ code: 'internal_error' });
     }
     console.error('[inbox-ingest] request failed:', err.name || 'Error');
     return res.status(500).json({ code: 'internal_error' });

@@ -127,36 +127,61 @@ describe('happy path', () => {
   });
 });
 
-describe('pre-parsed body guard (Finding 2 fix)', () => {
-  it('a pre-parsed non-Buffer/non-string body (e.g. Vercel JSON-parsed) settles with a 422 verdict instead of hanging', async () => {
+describe('pre-parsed body guard (Finding 2 fix, round 2: transient not permanent)', () => {
+  it('a pre-parsed non-Buffer/non-string body (e.g. Vercel JSON-parsed) settles with a transient 500, never a permanent-bounce 4xx', async () => {
     // The Worker always sends application/octet-stream, so this only
-    // simulates malformed/unexpected traffic — but before the fix, this
-    // exact shape (req.body already an object, stream already drained)
-    // hung the promise until maxDuration since 'data'/'end' never fire.
+    // simulates malformed/unexpected traffic — but before the round-1 fix,
+    // this exact shape (req.body already an object, stream already
+    // drained) hung the promise until maxDuration since 'data'/'end' never
+    // fire. This is an infra condition, not a deterministic property of the
+    // message, so it must settle transient (500, same code the generic
+    // catch-all uses) — never `unparseable`/422, which is in the Worker's
+    // REJECT_CODES and would permanently bounce every legitimate newsletter
+    // if this ever happened systemically.
     const req = fakeReq({ body: { some: 'json' } });
     const res = fakeRes();
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     await handler(req, res);
 
-    expect(res.statusCode).toBe(422);
-    expect(res.body).toEqual({ code: 'unparseable' });
+    expect(res.statusCode).toBe(500);
+    expect(res.body).toEqual({ code: 'internal_error' });
     expect(res.headers['x-masthead-ingest']).toBe('1');
     expect(ingestEmail).not.toHaveBeenCalled();
+
+    consoleSpy.mockRestore();
   });
 
-  it('a stream already marked ended with no req.body settles with a 422 verdict instead of hanging', async () => {
+  it('a stream already marked ended with no req.body settles with a transient 500, never a permanent-bounce 4xx', async () => {
     // Covers the other half of the same hazard: a runtime that drained the
     // stream without ever populating req.body.
     const req = fakeReq({});
     req.readableEnded = true;
     const res = fakeRes();
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     await handler(req, res);
 
-    expect(res.statusCode).toBe(422);
-    expect(res.body).toEqual({ code: 'unparseable' });
+    expect(res.statusCode).toBe(500);
+    expect(res.body).toEqual({ code: 'internal_error' });
     expect(res.headers['x-masthead-ingest']).toBe('1');
     expect(ingestEmail).not.toHaveBeenCalled();
+
+    consoleSpy.mockRestore();
+  });
+
+  it('logs a distinguishing operator message (never a generic 500 log) so this cause is diagnosable', async () => {
+    const req = fakeReq({ body: { some: 'json' } });
+    const res = fakeRes();
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    await handler(req, res);
+
+    expect(consoleSpy).toHaveBeenCalledWith(
+      '[inbox-ingest] raw body unavailable (pre-parsed or consumed stream)'
+    );
+
+    consoleSpy.mockRestore();
   });
 });
 

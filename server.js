@@ -3,6 +3,8 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { extractArticle } from './lib/extractor.js';
 import { getHeadlinesForSources, getCatalogHeadlines } from './lib/feedService.js';
+import { verifyIngestSecret } from './lib/ingestAuth.js';
+import { ingestEmail } from './lib/inboxIngest.js';
 
 const app = new Hono();
 app.use('/*', cors());
@@ -108,6 +110,58 @@ app.post('/api/save-url', async (c) => {
     console.error('Save-url error:', err.message);
     return c.json({ success: false, error: err.message }, 500);
   }
+});
+
+// Dev mirror of api/inbox-ingest.mjs (landmine 1) — same lib call, adapted
+// to Hono. No CORS grant here either: the secret is the gate.
+app.post('/api/inbox-ingest', async (c) => {
+  c.header('x-masthead-ingest', '1');
+
+  if (!verifyIngestSecret({ headers: { 'x-ingest-secret': c.req.header('x-ingest-secret') } })) {
+    return c.json({ code: 'unauthorized' }, 401);
+  }
+
+  try {
+    const rawBuffer = Buffer.from(await c.req.arrayBuffer());
+    const envelopeTo = c.req.header('x-envelope-to');
+    const { status, code } = await ingestEmail({ envelopeTo, rawBuffer });
+    return c.json({ code }, status);
+  } catch (err) {
+    console.error('[inbox-ingest] request failed:', err.name || 'Error');
+    return c.json({ code: 'internal_error' }, 500);
+  }
+});
+
+// Dev mirror of api/inbox-address.mjs — proxies the exported handler itself
+// (like /api/discover-rss, not the direct-lib-call style of /api/inbox-ingest
+// above) so method dispatch, rate limiting, and auth all run through the
+// exact same code path in dev as in prod (landmine 1: they can never drift).
+app.all('/api/inbox-address', async (c) => {
+  const { default: inboxAddressHandler } = await import('./api/inbox-address.mjs');
+  const body = c.req.method === 'POST' ? await c.req.json().catch(() => undefined) : undefined;
+  const result = await new Promise((resolve) => {
+    const fakeRes = {
+      _status: 200,
+      _headers: {},
+      setHeader(k, v) { this._headers[k] = v; },
+      status(code) { this._status = code; return this; },
+      json(data) { resolve({ status: this._status, data }); return this; },
+      end() { resolve({ status: this._status, data: null }); return this; },
+    };
+    const fakeReq = {
+      method: c.req.method,
+      url: c.req.url,
+      headers: {
+        host: c.req.header('host') || 'localhost',
+        origin: c.req.header('origin') || '',
+        authorization: c.req.header('authorization') || '',
+        'x-forwarded-for': c.req.header('x-forwarded-for') || '',
+      },
+      body,
+    };
+    inboxAddressHandler(fakeReq, fakeRes);
+  });
+  return c.json(result.data, result.status);
 });
 
 const port = 3001;

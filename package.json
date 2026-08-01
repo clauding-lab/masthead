@@ -12,7 +12,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "verify-catalog": "node scripts/verify-catalog.mjs",
-    "probe-premium": "node scripts/probe-premium-custody.mjs"
+    "probe-premium": "node scripts/probe-premium-custody.mjs",
+    "probe-inbox": "node scripts/probe-inbox-custody.mjs"
   },
   "dependencies": {
     "@hono/node-server": "^1.19.11",
@@ -26,6 +27,7 @@
     "hono": "^4.12.8",
     "idb": "^8.0.3",
     "linkedom": "^0.18.12",
+    "postal-mime": "^2.7.5",
     "postcss": "^8.5.8",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",

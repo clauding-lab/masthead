@@ -7,6 +7,17 @@ import { MAX_RAW_BYTES } from '../lib/inboxConfig.js';
 const INGEST_HEADER = 'x-masthead-ingest';
 
 class RawBodyTooLargeError extends Error {}
+// Vercel parses the body into a plain object when content-type says
+// json/form/text — by the time this handler runs, the underlying stream is
+// already fully drained, so req.on('data'/'end') below would never fire and
+// the stream-accumulation promise would hang until maxDuration (30s), with
+// no [ingest] log line to diagnose from. The Worker always sends
+// application/octet-stream (never one of those content-types), so this only
+// fires for malformed/unexpected traffic — treated the same way ingestEmail
+// treats content it can't turn into a raw email: a clean, settled 4xx
+// verdict, never a hang (any settled response with the header beats a
+// timeout).
+class RawBodyUnavailableError extends Error {}
 
 // Vercel only parses the body when content-type says so; the Worker sends
 // application/octet-stream, so req.body arrives unparsed in production.
@@ -19,6 +30,14 @@ class RawBodyTooLargeError extends Error {}
 function readRawBody(req) {
   if (Buffer.isBuffer(req.body)) return Promise.resolve(req.body);
   if (typeof req.body === 'string') return Promise.resolve(Buffer.from(req.body));
+
+  // Anything else already present on req.body (a parsed object, `{}`, etc.)
+  // means the stream is gone — same for a stream the runtime has already
+  // marked complete/ended without ever populating req.body. Either way,
+  // waiting on 'data'/'end' below would hang forever.
+  if (req.body !== undefined || req.readableEnded || req.complete) {
+    return Promise.reject(new RawBodyUnavailableError());
+  }
 
   return new Promise((resolve, reject) => {
     const chunks = [];
@@ -72,6 +91,12 @@ export default async function handler(req, res) {
   } catch (err) {
     if (err instanceof RawBodyTooLargeError) {
       return res.status(413).json({ code: 'message_too_large' });
+    }
+    if (err instanceof RawBodyUnavailableError) {
+      // The Worker never sends a pre-parseable content-type, so this is
+      // malformed/unexpected traffic, not a raw email — same verdict
+      // ingestEmail itself uses for content it can't process.
+      return res.status(422).json({ code: 'unparseable' });
     }
     console.error('[inbox-ingest] request failed:', err.name || 'Error');
     return res.status(500).json({ code: 'internal_error' });

@@ -127,6 +127,39 @@ describe('happy path', () => {
   });
 });
 
+describe('pre-parsed body guard (Finding 2 fix)', () => {
+  it('a pre-parsed non-Buffer/non-string body (e.g. Vercel JSON-parsed) settles with a 422 verdict instead of hanging', async () => {
+    // The Worker always sends application/octet-stream, so this only
+    // simulates malformed/unexpected traffic — but before the fix, this
+    // exact shape (req.body already an object, stream already drained)
+    // hung the promise until maxDuration since 'data'/'end' never fire.
+    const req = fakeReq({ body: { some: 'json' } });
+    const res = fakeRes();
+
+    await handler(req, res);
+
+    expect(res.statusCode).toBe(422);
+    expect(res.body).toEqual({ code: 'unparseable' });
+    expect(res.headers['x-masthead-ingest']).toBe('1');
+    expect(ingestEmail).not.toHaveBeenCalled();
+  });
+
+  it('a stream already marked ended with no req.body settles with a 422 verdict instead of hanging', async () => {
+    // Covers the other half of the same hazard: a runtime that drained the
+    // stream without ever populating req.body.
+    const req = fakeReq({});
+    req.readableEnded = true;
+    const res = fakeRes();
+
+    await handler(req, res);
+
+    expect(res.statusCode).toBe(422);
+    expect(res.body).toEqual({ code: 'unparseable' });
+    expect(res.headers['x-masthead-ingest']).toBe('1');
+    expect(ingestEmail).not.toHaveBeenCalled();
+  });
+});
+
 describe('error path', () => {
   it('ingestEmail throws -> 500 with x-masthead-ingest header, error not leaked', async () => {
     vi.mocked(ingestEmail).mockRejectedValue(new Error('boom: secret-detail'));

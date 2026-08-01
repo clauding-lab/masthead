@@ -95,10 +95,42 @@ if (service && probeUser) {
     })
   );
   await Promise.all(inserts);
-  const rows = await (await fetch(`${url}/rest/v1/user_inbox_messages?user_id=eq.${probeUser}&select=id&dedupe_key=like.${PROBE_PREFIX}cap-*`, { headers: hdr })).json();
+  const rows = await (await fetch(`${url}/rest/v1/user_inbox_messages?user_id=eq.${probeUser}&select=id,dedupe_key&dedupe_key=like.${PROBE_PREFIX}cap-*`, { headers: hdr })).json();
   const capPass = rows.length === 5;
   console.log(`${capPass ? 'PASS' : 'FAIL'} concurrent cap: ${rows.length}/8 inserts landed (want exactly 5)`);
   if (!capPass) failures++;
+
+  // (a2) dedupe precedes quota (spec §5.1, fix-wave F1): the inbox above is
+  // now sitting exactly at the 100MB cap (5 x 20MB). Redeliver the SAME
+  // dedupe_key as one of the rows that just landed. enforce_inbox_quota is a
+  // BEFORE-row trigger, which fires before Postgres checks constraints — so
+  // without its dedupe short-circuit this insert would hit the quota check
+  // FIRST (100MB + 20MB > cap) and return the P0001 'inbox quota exceeded'
+  // error, which PostgREST maps to 400. With the short-circuit, the trigger
+  // returns NEW immediately on the existing dedupe_key and the INSERT falls
+  // through to the UNIQUE(user_id, dedupe_key) constraint, which PostgREST
+  // maps to 409. This test discriminates the two: 409 = dedupe won (correct
+  // order), 400 = quota won (spec §5.1 violation).
+  if (rows.length > 0) {
+    const redeliverKey = rows[0].dedupe_key;
+    const redeliverRes = await fetch(`${url}/rest/v1/user_inbox_messages`, {
+      method: 'POST', headers: hdr,
+      body: JSON.stringify({
+        user_id: probeUser,
+        from_email: 'dedupe-before-quota@example.com',
+        size_bytes: 20000000,
+        dedupe_key: redeliverKey,
+      }),
+    });
+    const redeliverText = await redeliverRes.text();
+    const dedupePass = redeliverRes.status === 409;
+    console.log(`${dedupePass ? 'PASS' : 'FAIL'} dedupe precedes quota: redelivered existing dedupe_key at full quota -> ${redeliverRes.status} (want 409, not 400/P0001) ${redeliverText.slice(0, 100)}`);
+    if (!dedupePass) failures++;
+  } else {
+    console.log('FAIL dedupe precedes quota: no cap rows landed to redeliver against (concurrent cap test above did not produce any rows)');
+    failures++;
+  }
+
   await fetch(`${url}/rest/v1/user_inbox_messages?user_id=eq.${probeUser}&dedupe_key=like.${PROBE_PREFIX}cap-*`, { method: 'DELETE', headers: hdr });
 
   // (b) byte equality: two INDEPENDENT producers of the byte count, not one

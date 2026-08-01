@@ -37,6 +37,22 @@ When something ships broken, when a methodology gap is exposed, or when a smoke 
 
 ## Entries (most recent first)
 
+## 2026-08-01 — Phase 3 · 3A final-review fix wave | BEFORE-row trigger ordering and a missing-From guard both fed the same "infinite retry" failure class
+
+**Trigger:** Whole-branch final review (Opus) of `feat/phase3-email-ingestion`, 31 commits, no per-task review had caught either issue because each was invisible from inside a single task's diff.
+
+**What went wrong:** Two independent bugs converged on the same consequence — a deterministically bad message getting deferred forever instead of bounced. (1) `enforce_inbox_quota` (`supabase/migrations/20260731_create_inbox.sql`) is a BEFORE-row trigger; Postgres fires those before checking constraints, so a redelivered message whose `(user_id, dedupe_key)` already existed hit the quota count/raise FIRST when the inbox was full — a stored duplicate at quota returned `over_quota_final`/507 (permanent NDR) instead of `duplicate`, silently violating spec §5.1's stated ordering. The unit test for this ordering (`inboxIngest.test.js` case 15) could not catch it — it mocks `insertMessage`, so it pins that the APP never independently queries quota, not that the DB's trigger/constraint race resolves correctly; only a live-DB probe can. (2) `parseEmail` returns `fromEmail: null` for real shapes (no From header, `undisclosed-recipients:;`, an empty `<>`) and `from_email` is `NOT NULL` at the DB — the row failed insert with 23502, surfaced as a 500, and the Cloudflare Worker's defer-on-non-2xx logic retried it forever, since nothing about a missing From header is ever going to resolve on retry.
+
+**Lesson:** for any BEFORE-row trigger enforcing an ordered check (spec says "A precedes B"), verify the ordering against Postgres's OWN trigger-fires-before-constraints semantics, not against the app-level call sequence — and write the enforcing test as a live-DB probe, not a mock, since the mock cannot see trigger execution order. Separately: any pipeline stage that maps parser output straight into a NOT NULL column needs an explicit null-guard mapped to a permanent (4xx) verdict, not just a happy-path type — a NOT NULL violation reaching the caller as a raw 500 gets treated as transient and retried forever against mail that will never become valid.
+
+**Prevention:** `enforce_inbox_quota` short-circuits with `return new` when `(user_id, dedupe_key)` already exists, before the quota count runs — verified live by a new dedupe-precedes-quota block in `scripts/probe-inbox-custody.mjs` (asserts PostgREST 409, not 400/P0001). `ingestEmail` now maps `!parsed.fromEmail` to 422 `unparseable`, RED-then-GREEN test-driven (`lib/inboxIngest.test.js` cases 5b/5c). A related class (a `.slice(0, max)` clamp splitting a surrogate pair → Postgres 22P05, same infinite-retry shape) was fixed in the same pass with a code-point-aware clamp in `lib/emailParse.js`.
+
+**Hotfix:** Fix-wave commit(s) on `feat/phase3-email-ingestion`, pre-merge (Task 11 of the SDD plan).
+
+**Cross-references:** AGENTS.md landmines 23 (insert-only ingest) and 24 (header-gated Worker verdicts); `.superpowers/sdd/2026-07-31-phase3-email-ingestion/progress.md` Task 11 ledger lines; `.superpowers/sdd/2026-07-31-phase3-email-ingestion/task-11-fixwave-report.md`.
+
+---
+
 ## 2026-07-30 — Phase 2 · 2E ship | A "suggestion" that writes to the same state as an explicit control silently overrides the user
 
 **Trigger:** 2E prod live drive, first real premium add. Owner-selected "Blogs & Newsletters", pasted a premium URL, clicked Add — server stored `kind: "news"`. 355 green tests, 12 per-task reviews, and a whole-branch final review had all passed over the code path.

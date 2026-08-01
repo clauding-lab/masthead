@@ -49,6 +49,22 @@ declare
   live_bytes bigint;
 begin
   perform pg_advisory_xact_lock(hashtext('inbox_quota'), hashtext(new.user_id::text));
+  -- Dedupe precedes quota (spec §5.1): this is a BEFORE-row trigger, and
+  -- Postgres fires BEFORE-row triggers before it checks constraints — so
+  -- without this short-circuit, a redelivered message whose (user_id,
+  -- dedupe_key) already exists would hit the quota check below FIRST. At a
+  -- full inbox that raises 'inbox quota exceeded' (P0001, a permanent
+  -- over_quota_final/507 NDR) for a message that should read as a harmless
+  -- 'duplicate'. Returning NEW here — without touching live_count/live_bytes
+  -- at all — lets the INSERT fall through to constraint checking, where the
+  -- UNIQUE(user_id, dedupe_key) index (not this trigger) is what decides
+  -- duplicates, via a normal 23505 the caller already maps to 'duplicate'.
+  if exists (
+    select 1 from public.user_inbox_messages
+     where user_id = new.user_id and dedupe_key = new.dedupe_key
+  ) then
+    return new;
+  end if;
   select count(*), coalesce(sum(size_bytes), 0)
     into live_count, live_bytes
     from public.user_inbox_messages

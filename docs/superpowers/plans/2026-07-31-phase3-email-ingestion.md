@@ -498,11 +498,17 @@ describe('parseEmail', () => {
 //     calls other than markDeferred/clearDeferred (which touch user_ingest_addresses only)
 // 15. dedupe precedes quota: 'duplicate' verdict even when quotaSnapshot says full
 //     (insertMessage handles both; assert order: insertMessage called, no pre-quota rejection)
+// 16. NUL-strip pin (ledgered T5 carry-forward; write this test FIRST and watch it fail):
+//     parsed message whose text body and subject contain U+0000 (construct the bytes with
+//     String.fromCharCode(0) / Buffer — never a raw control byte typed into source) ->
+//     the row handed to repo.insertMessage contains no U+0000 in ANY string field
+//     (text_body, excerpt, subject, from_name, from_email); Postgres text cannot store 0x00
+//     and sanitizeEmailHtml covers html only
 ```
 
 Each case is a real `it()` with explicit mock returns and `expect` assertions — write them all.
 
-- [ ] **Step 2: FAIL → Step 3: implement `ingestEmail`:** envelope parse (`/^(.+)@(.+)$/` on lowercased `envelopeTo`, strip `+suffix` from local part, domain must equal `INGEST_DOMAIN`) → `INGEST_DISABLED` check → `repo.findAddressBySlug` → per-user limiter `inbox:<userId>` 60/hr + global `inbox:global` 1000/hr → raw size gate → `parse(rawBuffer)` → sanitize html → `messageBytes` gate → build row (excerpt: text else stripped html, collapsed whitespace, 200 chars) → `repo.insertMessage` → verdict incl. grace ladder via `markDeferred`/`clearDeferred` + `now() - overQuotaSince > GRACE_MS`. Log ONE line per message: `[ingest] <verdict.code> row=<addressRowId ?? 'none'> bytes=<n>` — never slug/subject/body. **Step 4: PASS.**
+- [ ] **Step 2: FAIL → Step 3: implement `ingestEmail`:** envelope parse (`/^(.+)@(.+)$/` on lowercased `envelopeTo`, strip `+suffix` from local part, domain must equal `INGEST_DOMAIN`) → `INGEST_DISABLED` check → `repo.findAddressBySlug` → per-user limiter `inbox:<userId>` 60/hr + global `inbox:global` 1000/hr → raw size gate → `parse(rawBuffer)` → sanitize html → `messageBytes` gate → build row (excerpt: text else stripped html, collapsed whitespace, 200 chars; strip U+0000 from every string field of the row — case 16) → `repo.insertMessage` → verdict incl. grace ladder via `markDeferred`/`clearDeferred` + `now() - overQuotaSince > GRACE_MS`. Log ONE line per message: `[ingest] <verdict.code> row=<addressRowId ?? 'none'> bytes=<n>` — never slug/subject/body. **Step 4: PASS.**
 
 - [ ] **Step 5: Failing tests for the route** (`api/inbox-ingest.test.js`, pattern: `api/premium-feeds.test.js` req/res mocks): 405 on GET; 401 + `x-masthead-ingest: 1` header on bad secret; happy path pipes buffer to `ingestEmail` and relays `{ status, code }` + header; 500 path also carries the header. **Step 6: implement route + `server.js` mirror** (Hono: `app.post('/api/inbox-ingest', …)` reading `await c.req.arrayBuffer()`, adapting to the same lib call — landmine 1) + `vercel.json` entry. **Step 7: PASS, full `npm test`, build, eslint. Commit: `feat(3a): ingest pipeline + route with authenticated verdict contract`**
 

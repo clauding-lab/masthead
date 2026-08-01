@@ -132,6 +132,38 @@ app.post('/api/inbox-ingest', async (c) => {
   }
 });
 
+// Dev mirror of api/inbox-address.mjs — proxies the exported handler itself
+// (like /api/discover-rss, not the direct-lib-call style of /api/inbox-ingest
+// above) so method dispatch, rate limiting, and auth all run through the
+// exact same code path in dev as in prod (landmine 1: they can never drift).
+app.all('/api/inbox-address', async (c) => {
+  const { default: inboxAddressHandler } = await import('./api/inbox-address.mjs');
+  const body = c.req.method === 'POST' ? await c.req.json().catch(() => undefined) : undefined;
+  const result = await new Promise((resolve) => {
+    const fakeRes = {
+      _status: 200,
+      _headers: {},
+      setHeader(k, v) { this._headers[k] = v; },
+      status(code) { this._status = code; return this; },
+      json(data) { resolve({ status: this._status, data }); return this; },
+      end() { resolve({ status: this._status, data: null }); return this; },
+    };
+    const fakeReq = {
+      method: c.req.method,
+      url: c.req.url,
+      headers: {
+        host: c.req.header('host') || 'localhost',
+        origin: c.req.header('origin') || '',
+        authorization: c.req.header('authorization') || '',
+        'x-forwarded-for': c.req.header('x-forwarded-for') || '',
+      },
+      body,
+    };
+    inboxAddressHandler(fakeReq, fakeRes);
+  });
+  return c.json(result.data, result.status);
+});
+
 const port = 3001;
 console.log(`Masthead API server running on http://localhost:${port}`);
 serve({ fetch: app.fetch, port });

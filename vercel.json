@@ -28,6 +28,7 @@
     "api/save-url.mjs": { "maxDuration": 15 },
     "api/discover-rss.mjs": { "maxDuration": 15 },
     "api/cron/poll.mjs": { "maxDuration": 60 },
-    "api/inbox-ingest.mjs": { "maxDuration": 30 }
+    "api/inbox-ingest.mjs": { "maxDuration": 30 },
+    "api/inbox-address.mjs": { "maxDuration": 15 }
   }
 }

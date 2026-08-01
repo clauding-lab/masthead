@@ -3,6 +3,8 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { extractArticle } from './lib/extractor.js';
 import { getHeadlinesForSources, getCatalogHeadlines } from './lib/feedService.js';
+import { verifyIngestSecret } from './lib/ingestAuth.js';
+import { ingestEmail } from './lib/inboxIngest.js';
 
 const app = new Hono();
 app.use('/*', cors());
@@ -107,6 +109,26 @@ app.post('/api/save-url', async (c) => {
   } catch (err) {
     console.error('Save-url error:', err.message);
     return c.json({ success: false, error: err.message }, 500);
+  }
+});
+
+// Dev mirror of api/inbox-ingest.mjs (landmine 1) — same lib call, adapted
+// to Hono. No CORS grant here either: the secret is the gate.
+app.post('/api/inbox-ingest', async (c) => {
+  c.header('x-masthead-ingest', '1');
+
+  if (!verifyIngestSecret({ headers: { 'x-ingest-secret': c.req.header('x-ingest-secret') } })) {
+    return c.json({ code: 'unauthorized' }, 401);
+  }
+
+  try {
+    const rawBuffer = Buffer.from(await c.req.arrayBuffer());
+    const envelopeTo = c.req.header('x-envelope-to');
+    const { status, code } = await ingestEmail({ envelopeTo, rawBuffer });
+    return c.json({ code }, status);
+  } catch (err) {
+    console.error('[inbox-ingest] request failed:', err.name || 'Error');
+    return c.json({ code: 'internal_error' }, 500);
   }
 });
 

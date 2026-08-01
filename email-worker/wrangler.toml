@@ -1,0 +1,12 @@
+name = "masthead-email-ingest"
+main = "worker.js"
+compatibility_date = "2026-08-01"
+
+[vars]
+INGEST_URL = "https://masthead-news.vercel.app/api/inbox-ingest"
+
+# INGEST_SECRET is a secret, never a var: set it with
+#   wrangler secret put INGEST_SECRET
+# from inside this directory. It must NEVER be committed to this file --
+# see README.md for the full deploy sequence and the Task 12 verification
+# caveat before the catch-all rule is activated.

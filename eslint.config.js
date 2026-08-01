@@ -35,4 +35,13 @@ export default defineConfig([
       globals: globals.node,
     },
   },
+  // email-worker/ runs in the Cloudflare Workers runtime, not Node or the
+  // browser — it gets its own minimal global set (fetch/Response for the
+  // fetch-and-forward flow, console for logging) rather than either preset.
+  {
+    files: ['email-worker/**/*.js'],
+    languageOptions: {
+      globals: { fetch: 'readonly', Response: 'readonly', console: 'readonly' },
+    },
+  },
 ])

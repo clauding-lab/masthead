@@ -41,7 +41,7 @@ docs/superpowers/      specs + plans (e.g. the Phase 1 Harden spec/plan)
 | Build for release | `npm run build` (includes `scripts/check-bundle.mjs` service-role leak scan) |
 | Unit tests (vitest, 358 tests incl. `api/**`) | `npm test` |
 | Tests, watch mode | `npm run test:watch` |
-| Lint (baseline: 4 pre-existing errors — 3 set-state-in-effect + 1 `tailwind.config.js` no-undef — plus 5 warnings; zero NEW is the gate) | `npx eslint src lib api server.js scripts` |
+| Lint (baseline: 4 pre-existing errors — 3 set-state-in-effect + 1 `tailwind.config.js` no-undef — plus 5 warnings; zero NEW is the gate) | `npx eslint src lib api server.js scripts email-worker` |
 | Catalog feed health — manual, pre-merge, deliberately NOT in CI (36 network calls) | `npm run verify-catalog` |
 | Premium-table custody probe — manual, network, requires `20260719_create_user_premium_feeds.sql` applied; expects all-PASS anon denials (optional concurrent-cap block via `SUPABASE_SERVICE_ROLE_KEY` + `PROBE_USER_ID`) | `npm run probe-premium` |
 | Preview production build | `npm run preview` |
@@ -57,7 +57,7 @@ No CI workflows yet (`.github/workflows/` does not exist). Release = **merge to 
 ## Coding style
 
 - **JavaScript only** (JS/JSX, ESM — `"type": "module"`). No TypeScript. Use JSDoc where a type genuinely clarifies.
-- **Lint:** eslint flat config (`eslint.config.js`) — browser globals for `src/`, Node globals for `lib/`, `server.js`, `api/`, `vitest.config.js`.
+- **Lint:** eslint flat config (`eslint.config.js`) — browser globals for `src/`, Node globals for `lib/`, `server.js`, `api/`, `vitest.config.js`; `email-worker/` gets its own minimal Cloudflare-Workers-runtime globals (`fetch`, `Response`, `console` — no Node globals, it's not Node).
 - **Tests:** vitest, `*.test.js` colocated next to the module; `fake-indexeddb` for db tests.
 - **Commits:** Conventional Commits (`feat:`, `fix:`, `chore:`, `docs:`, `test:`, etc.), imperative mood. No `Co-Authored-By: Claude` lines — attribution is disabled globally.
 - **Files:** focused modules; ~400 lines typical, 800 max.

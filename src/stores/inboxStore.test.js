@@ -770,6 +770,27 @@ describe('epoch fencing across reset() (final whole-branch review, F2)', () => {
     expect(state.unreadCount).toBe(0);
   });
 
+  // A5 fold-in (final reviewer re-run): refreshQuota is the last unfenced
+  // await-then-set() in the store — symmetric with bootstrap's GET half
+  // above, same ghost-data hazard.
+  it('refreshQuota: a reset while the GET is in flight discards the stale resolution (A5)', async () => {
+    useInboxStore.setState({ address: null, addressLoaded: false, bytesUsed: 0, messageCount: 0 });
+    let resolveAuthed;
+    authed.mockReturnValue(new Promise((resolve) => { resolveAuthed = resolve; }));
+
+    const pending = useInboxStore.getState().refreshQuota();
+    useInboxStore.getState().reset();
+
+    resolveAuthed(ADDRESS_RESULT);
+    await pending;
+
+    const state = useInboxStore.getState();
+    expect(state.address).toBeNull();
+    expect(state.addressLoaded).toBe(false);
+    expect(state.bytesUsed).toBe(0);
+    expect(state.messageCount).toBe(0);
+  });
+
   it('remove: a rollback after reset does not resurrect a message into the reset store', async () => {
     useInboxStore.setState({ messages: [{ id: 'm1', read_at: null }], unreadCount: 1, error: null });
     let rejectRemove;

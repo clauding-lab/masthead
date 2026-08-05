@@ -306,10 +306,13 @@ const useInboxStore = create((set, get) => ({
   // refresh failure must never surface as a store error or block whatever
   // triggered it.
   refreshQuota: async () => {
+    const epoch = get().epoch; // F2 (A5 fold-in): stale-write fence, symmetric with bootstrap's GET half
     try {
       const token = await getAccessToken();
       if (!token) return;
-      applyAddressResult(set, await authed('GET', API));
+      const result = await authed('GET', API);
+      if (get().epoch !== epoch) return;
+      applyAddressResult(set, result);
     } catch (err) {
       console.error('[inbox] quota refresh failed:', err?.message || err);
     }

@@ -547,6 +547,56 @@ describe('requestAddress / regenerateAddress / removeAddress', () => {
   });
 });
 
+// T14 re-review probes (T15 mandatory adds): both pin behavior that a
+// final-value-only assertion cannot see — a mutant can visit an invalid
+// intermediate state and still land back on a correct-looking end value.
+describe('concurrency safety (T14 re-review probes)', () => {
+  // Probe (a): the `didDecrement` gate (`target.read_at === null &&
+  // state.unreadCount > 0`) must hold DURING the optimistic update, not just
+  // at the end. A mutant that drops the `&& state.unreadCount > 0` half
+  // decrements unreadCount to -1 the instant remove() is called (visible to
+  // a subscribed badge immediately), then a rejected write rolls it back to
+  // 0 — a final-value assertion never observes the -1 that rendered
+  // mid-flight. Reading unreadCount BEFORE the write settles is the only way
+  // to catch it.
+  it('remove: mid-flight unreadCount never dips below 0 while the write is still pending', async () => {
+    useInboxStore.setState({ messages: [{ id: 'a', read_at: null }], unreadCount: 0, error: null });
+    let rejectRemove;
+    inboxData.removeMessage.mockReturnValue(new Promise((_resolve, reject) => { rejectRemove = reject; }));
+
+    const pending = useInboxStore.getState().remove('a');
+    const midFlight = useInboxStore.getState().unreadCount; // what a subscribed badge renders right now
+
+    rejectRemove({ message: 'down' });
+    await pending;
+
+    expect(midFlight).toBe(0);
+    expect(useInboxStore.getState().unreadCount).toBe(0);
+  });
+
+  // Probe (b): openMessage's `Math.max(0, state.unreadCount - 1)` floor
+  // (inboxStore.js:133) is load-bearing on its own — remove()'s comment that
+  // its own floor was a no-op does NOT transfer here, because openMessage
+  // has no `didDecrement`-style gate keeping it above zero in the first
+  // place. A concurrent remove() can drive unreadCount to 0 before
+  // openMessage's own decrement lands; without the floor that final
+  // decrement goes negative.
+  it('openMessage: concurrent remove driving unreadCount to 0 followed by an openMessage decrement never goes negative', async () => {
+    useInboxStore.setState({
+      messages: [{ id: 'a', read_at: null }, { id: 'b', read_at: null }],
+      unreadCount: 1,
+      error: null,
+    });
+    inboxData.removeMessage.mockResolvedValue(undefined);
+    inboxData.getMessage.mockResolvedValue({ id: 'b', read_at: null });
+    inboxData.markRead.mockResolvedValue(undefined);
+
+    await Promise.all([useInboxStore.getState().remove('a'), useInboxStore.getState().openMessage('b')]);
+
+    expect(useInboxStore.getState().unreadCount).toBeGreaterThanOrEqual(0);
+  });
+});
+
 describe('reset', () => {
   it('clears every field back to its initial value', () => {
     useInboxStore.setState({

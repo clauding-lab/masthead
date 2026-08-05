@@ -57,7 +57,10 @@ function SettingSection({ title, children }) {
 }
 
 export default function SettingsPage() {
-  const { theme, fontSize, selectedSourceIds, customSources, setTheme, setFontSize, toggleSource, addCustomSource, removeCustomSource } = useSettingsStore();
+  const {
+    theme, fontSize, selectedSourceIds, customSources, alwaysLoadRemoteImages,
+    setTheme, setFontSize, toggleSource, addCustomSource, removeCustomSource, setAlwaysLoadRemoteImages,
+  } = useSettingsStore();
   const { user, signInWithGoogle, signOut } = useAuthStore();
   const premiumFeeds = usePremiumStore((s) => s.feeds);
   const [storage, setStorage] = useState(null);
@@ -231,6 +234,34 @@ export default function SettingsPage() {
           >
             The quick brown fox jumps over the lazy dog.
           </div>
+        </div>
+      </SettingSection>
+
+      {/* Inbox — remote images in newsletter bodies are a tracking-pixel /
+          read-receipt vector, so InboxMessagePage.jsx blocks them by
+          default; this opts back into always loading them automatically. */}
+      <SettingSection title="Inbox">
+        <div className="px-4 py-3 flex items-center gap-3">
+          <div className="flex-1 min-w-0">
+            <p className="font-ui text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+              Load images automatically
+            </p>
+            <p className="font-ui text-xs mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
+              Off by default — newsletter images can be used to track when you open a message.
+            </p>
+          </div>
+          <button
+            onClick={() => setAlwaysLoadRemoteImages(!alwaysLoadRemoteImages)}
+            className="relative w-11 h-6 rounded-full shrink-0 transition-colors"
+            style={{ backgroundColor: alwaysLoadRemoteImages ? 'var(--accent)' : 'var(--border)' }}
+            aria-label="Load remote images automatically"
+            aria-pressed={alwaysLoadRemoteImages}
+          >
+            <div
+              className="absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform"
+              style={{ transform: alwaysLoadRemoteImages ? 'translateX(22px)' : 'translateX(2px)' }}
+            />
+          </button>
         </div>
       </SettingSection>
 

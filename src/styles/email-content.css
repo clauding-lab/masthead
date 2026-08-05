@@ -1,0 +1,49 @@
+/* Email message body styling (Task 16) — scoped like reader.css scopes
+   .reader-body, but this class carries a SECOND job on top of typography:
+   it is the CLICKJACKING CONTAINMENT boundary for untrusted newsletter
+   HTML (3A final-review carry-forward). sanitizeEmailHtml allows the
+   `style` ATTRIBUTE (newsletters are unreadable without it — tables and
+   inline layout), which means a hostile email can set `position:fixed`,
+   negative margins, or a huge `z-index` trying to paint itself over app
+   chrome (the Delete button, the bottom tab bar). `isolation: isolate`
+   gives this element its own stacking context — a z-index set by a child
+   can never escape upward past this boundary — and `position: relative` +
+   `overflow: hidden` clip anything a child tries to position or offset
+   outside this box. This must stay ONE element: the same node that
+   receives the sanitized HTML via dangerouslySetInnerHTML, never split
+   into a "content" node nested inside a separate "containment" wrapper,
+   or a positioned child could still find its way out to the un-contained
+   one. */
+.email-content {
+  isolation: isolate;
+  position: relative;
+  overflow: hidden;
+  z-index: 0;
+
+  font-family: var(--font-serif);
+  font-size: var(--reader-body, 17px);
+  line-height: 1.6;
+  color: var(--text-primary);
+  word-wrap: break-word;
+}
+
+.email-content table {
+  max-width: 100% !important;
+  width: auto !important;
+}
+
+.email-content img {
+  max-width: 100%;
+  height: auto;
+}
+
+.email-content a {
+  color: var(--accent);
+}
+
+.email-content blockquote {
+  border-left: 3px solid var(--border);
+  padding-left: 1em;
+  margin-left: 0;
+  color: var(--text-secondary);
+}

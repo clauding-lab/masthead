@@ -11,8 +11,18 @@ vi.mock('../stores/authStore', () => ({ default: vi.fn() }));
 // state actually wraps its content in the pull-to-refresh gesture, which
 // the real component has no visible DOM signal for at rest (pullDistance 0
 // renders no text, no distinguishing class).
+// T15 re-review fold-in: the original stub swallowed `onRefresh` entirely,
+// so wiring `<PullToRefresh onRefresh={someUnrelatedFunction}>` would still
+// pass every test in this file (a "dead gesture" — the wrapper renders, but
+// pulling it does nothing). Rendering a real button that fires the prop
+// lets a later test prove fetchList is actually reachable through it.
 vi.mock('../components/PullToRefresh', () => ({
-  default: ({ children }) => <div data-testid="pull-to-refresh">{children}</div>,
+  default: ({ children, onRefresh }) => (
+    <div data-testid="pull-to-refresh">
+      <button onClick={onRefresh}>Trigger Refresh</button>
+      {children}
+    </div>
+  ),
 }));
 
 import useInboxStore from '../stores/inboxStore';
@@ -301,6 +311,37 @@ describe('InboxPage — list state', () => {
 
     expect(fetchList).toHaveBeenCalledTimes(1);
   });
+
+  // T15 re-review fold-in (1): the pull-to-refresh gesture must actually be
+  // wired to fetchList, not just present as an inert wrapper.
+  it('wires the pull-to-refresh gesture to fetchList (dead-gesture pin)', () => {
+    const fetchList = vi.fn();
+    useInboxStore.mockReturnValue(
+      baseInboxState({ addressLoaded: true, address: 'a@b.com', messages: MESSAGES, fetchList })
+    );
+
+    const { container } = renderPage();
+    expect(fetchList).toHaveBeenCalledTimes(1); // the mount call
+
+    fireClick(findButtonByText(container, 'Trigger Refresh'));
+
+    expect(fetchList).toHaveBeenCalledTimes(2);
+  });
+
+  // T15 re-review fold-in (3): messages.length === 0 is the OTHER half of
+  // the skeleton gate (`messages.length === 0 && isLoading`) — a mutant that
+  // drops the length check would show the skeleton over a populated list
+  // during a pull-to-refresh-triggered isLoading:true.
+  it('renders message rows, not the skeleton, when isLoading is true but messages are already present', () => {
+    useInboxStore.mockReturnValue(
+      baseInboxState({ addressLoaded: true, address: 'a@b.com', messages: MESSAGES, isLoading: true })
+    );
+
+    const { container } = renderPage();
+
+    expect(container.querySelectorAll('.skeleton')).toHaveLength(0);
+    expect(container.textContent).toContain('Weekly markets digest');
+  });
 });
 
 describe('InboxPage — window focus refetch', () => {
@@ -390,6 +431,12 @@ describe('InboxPage — quota banners', () => {
 
     expect(container.textContent).toContain('Inbox full');
     expect(container.textContent).toContain('5 deferred since August 1, 2026');
+    // T15 re-review fold-in (2): quota/deferred banners are informational
+    // (role="status"), never role="alert" — pinned from both directions so
+    // a mutant that swapped the QuotaBanner default tone can't hide behind
+    // an assertion that only checks one side.
+    expect(container.querySelector('[role="status"]')).toBeTruthy();
+    expect(container.querySelector('[role="alert"]')).toBeFalsy();
   });
 
   it('deferredCount > 0 with no overQuotaSince shows a deferred note, distinct from the full-inbox banner', () => {

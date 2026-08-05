@@ -54,6 +54,15 @@ function loadSelectedSourceIds() {
   return sourcesData.sources.filter((s) => sourceKind(s) === 'news').map((s) => s.id);
 }
 
+// Security-relevant default (Task 16): newsletter bodies can carry remote
+// images as a tracking-pixel / read-receipt vector, so InboxMessagePage
+// blocks them unless this is explicitly opted into — persisted the same
+// way as the theme/fontSize siblings above.
+function getInitialAlwaysLoadRemoteImages() {
+  if (typeof window === 'undefined') return false;
+  return localStorage.getItem('masthead-alwaysLoadRemoteImages') === 'true';
+}
+
 function loadCustomSources() {
   try {
     const stored = localStorage.getItem('masthead-customSources');
@@ -67,6 +76,7 @@ const useSettingsStore = create((set, get) => ({
   fontSize: 18,
   selectedSourceIds: loadSelectedSourceIds(), // array of strings
   customSources: loadCustomSources(),
+  alwaysLoadRemoteImages: getInitialAlwaysLoadRemoteImages(),
 
   setTheme: (theme) => {
     localStorage.setItem('masthead-theme', theme);
@@ -77,6 +87,11 @@ const useSettingsStore = create((set, get) => ({
   setFontSize: (fontSize) => {
     localStorage.setItem('masthead-fontSize', String(fontSize));
     set({ fontSize });
+  },
+
+  setAlwaysLoadRemoteImages: (alwaysLoadRemoteImages) => {
+    localStorage.setItem('masthead-alwaysLoadRemoteImages', String(alwaysLoadRemoteImages));
+    set({ alwaysLoadRemoteImages });
   },
 
   toggleSource: (sourceId) => {
@@ -135,8 +150,9 @@ const useSettingsStore = create((set, get) => ({
     const fontSize = parseInt(localStorage.getItem('masthead-fontSize') || '18', 10);
     const selectedSourceIds = loadSelectedSourceIds();
     const customSources = loadCustomSources();
+    const alwaysLoadRemoteImages = getInitialAlwaysLoadRemoteImages();
     applyTheme(theme);
-    set({ theme, fontSize, selectedSourceIds, customSources });
+    set({ theme, fontSize, selectedSourceIds, customSources, alwaysLoadRemoteImages });
   },
 }));
 

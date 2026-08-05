@@ -35,6 +35,12 @@ function applyAddressResult(set, result) {
 }
 
 const useInboxStore = create((set, get) => ({
+  // Final whole-branch review, F2: bumped by reset() and captured by
+  // bootstrap/fetchList before their awaits and by remove()/clearRead()'s
+  // rollback paths — a write whose epoch no longer matches current state is
+  // stale (started before a sign-out/reset) and must be dropped rather than
+  // resurrecting the previous session's data over the freshly-cleared store.
+  epoch: 0,
   address: null,
   bytesUsed: 0,
   messageCount: 0,
@@ -67,11 +73,16 @@ const useInboxStore = create((set, get) => ({
   // (no console output either — a signed-out boot is the ordinary case,
   // not a failure).
   bootstrap: async () => {
+    const epoch = get().epoch; // F2: stale-write fence — see field comment above
     try {
       const token = await getAccessToken();
       if (!token) return;
-      applyAddressResult(set, await authed('GET', API));
-      set({ unreadCount: await inboxData.unreadCount() });
+      const result = await authed('GET', API);
+      if (get().epoch !== epoch) return;
+      applyAddressResult(set, result);
+      const count = await inboxData.unreadCount();
+      if (get().epoch !== epoch) return;
+      set({ unreadCount: count });
     } catch (err) {
       console.error('[inbox] bootstrap failed:', err?.message || err);
     }
@@ -85,16 +96,20 @@ const useInboxStore = create((set, get) => ({
   // same swallow posture as bootstrap (logged, never thrown, never masks
   // a real list-fetch failure).
   fetchList: async () => {
+    const epoch = get().epoch; // F2: stale-write fence — see field comment above
     set({ isLoading: true, error: null });
     try {
       const messages = await inboxData.listMessages();
+      if (get().epoch !== epoch) return;
       set({ messages, isLoading: false });
     } catch (err) {
       set({ error: err?.message || 'Could not load messages', isLoading: false });
       return;
     }
     try {
-      set({ unreadCount: await inboxData.unreadCount() });
+      const count = await inboxData.unreadCount();
+      if (get().epoch !== epoch) return;
+      set({ unreadCount: count });
     } catch (err) {
       console.error('[inbox] fetchList unread-count refresh failed:', err?.message || err);
     }
@@ -139,7 +154,11 @@ const useInboxStore = create((set, get) => ({
       set({ error: 'Message not found', errorCode: 'not_found' });
       return null;
     }
-    const wasUnread = message.read_at === null;
+    // Final whole-branch review, F3: unreadCount() filters `deleted_at IS
+    // NULL` server-side (lib/inboxData.js) — a tombstoned-but-unread row was
+    // never counted in the badge to begin with, so opening it must not
+    // decrement.
+    const wasUnread = message.read_at === null && !message.deleted_at;
     const now = new Date().toISOString();
     try {
       await inboxData.markRead(id);
@@ -175,6 +194,7 @@ const useInboxStore = create((set, get) => ({
   // reason to skip the LOCAL optimistic update and its rollback bookkeeping,
   // never reason to skip the write itself.
   remove: async (id) => {
+    const epoch = get().epoch; // F2: stale-write fence — see field comment above
     let removed = null;
     let didDecrement = false;
     set((state) => {
@@ -197,6 +217,7 @@ const useInboxStore = create((set, get) => ({
     try {
       await inboxData.removeMessage(id);
     } catch (err) {
+      if (get().epoch !== epoch) return; // F2: don't resurrect into a reset store
       set((state) => ({
         messages: removed && !state.messages.some((m) => m.id === id) ? [...state.messages, removed] : state.messages,
         unreadCount: didDecrement ? state.unreadCount + 1 : state.unreadCount,
@@ -219,6 +240,7 @@ const useInboxStore = create((set, get) => ({
   // update (nothing to remove from a list that doesn't show it), never
   // reason to skip the write.
   clearRead: async () => {
+    const epoch = get().epoch; // F2: stale-write fence — see field comment above
     let removedMessages = [];
     set((state) => {
       removedMessages = state.messages.filter((m) => m.read_at !== null);
@@ -231,6 +253,7 @@ const useInboxStore = create((set, get) => ({
     try {
       await inboxData.clearRead();
     } catch (err) {
+      if (get().epoch !== epoch) return; // F2: don't resurrect into a reset store
       set((state) => {
         const present = new Set(state.messages.map((m) => m.id));
         const toRestore = removedMessages.filter((m) => !present.has(m.id));
@@ -293,7 +316,8 @@ const useInboxStore = create((set, get) => ({
   },
 
   reset: () => {
-    set({
+    set((state) => ({
+      epoch: state.epoch + 1, // F2: fences off any already-in-flight write below
       address: null,
       bytesUsed: 0,
       messageCount: 0,
@@ -305,7 +329,7 @@ const useInboxStore = create((set, get) => ({
       error: null,
       errorCode: null,
       addressLoaded: false,
-    });
+    }));
   },
 }));
 

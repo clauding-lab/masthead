@@ -113,7 +113,10 @@ export default function InboxMessagePage() {
           // plain-English line in the DOM; the raw detail goes to the
           // console only, for debugging.
           console.error('[inbox] failed to load message:', storeError || errorCode || 'unknown error');
-          setRetryableError("Couldn't load this message. Check your connection and try again.");
+          // Fold-in (live-browser visual verification): the EmptyState title
+          // just above already reads "Couldn't load this message" — this
+          // body string used to repeat that same phrase back-to-back.
+          setRetryableError('Check your connection and try again.');
           setIsLoading(false);
           return;
         }

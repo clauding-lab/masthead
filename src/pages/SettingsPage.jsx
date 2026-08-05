@@ -361,9 +361,15 @@ export default function SettingsPage() {
             a session the same way premium feeds are gated above. */}
         {user && (
           <div className="px-4 py-3" style={{ borderTop: '1px solid var(--divider)' }}>
-            {inboxAddress ? (
+            {inboxAddress && <EmailAddressRow address={inboxAddress} />}
+            {/* Final whole-branch review, F1: hoisted out of the
+                `inboxAddress ?` branch — removeAddress() is row-preserving,
+                so the meter and Clear-read row must survive address removal
+                as long as retained messages exist (`messageCount > 0`).
+                Regenerate/Remove stay address-gated below — there's no
+                address left to act on once it's null. */}
+            {(inboxAddress || messageCount > 0) && (
               <>
-                <EmailAddressRow address={inboxAddress} />
                 <div className="flex items-center justify-between mb-1">
                   <span className="font-ui text-sm" style={{ color: 'var(--text-primary)' }}>
                     Inbox storage
@@ -393,23 +399,25 @@ export default function SettingsPage() {
                 >
                   Clear read messages
                 </button>
-                <div className="flex items-center gap-2 mt-2">
-                  <button
-                    onClick={() => setInboxConfirmAction('regenerate')}
-                    className="flex-1 px-3 py-1.5 rounded-lg font-ui text-xs font-medium"
-                    style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
-                  >
-                    Regenerate address
-                  </button>
-                  <button
-                    onClick={() => setInboxConfirmAction('remove')}
-                    className="flex-1 px-3 py-1.5 rounded-lg font-ui text-xs font-medium"
-                    style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--error)', border: '1px solid var(--border)' }}
-                  >
-                    Remove address
-                  </button>
-                </div>
               </>
+            )}
+            {inboxAddress ? (
+              <div className="flex items-center gap-2 mt-2">
+                <button
+                  onClick={() => setInboxConfirmAction('regenerate')}
+                  className="flex-1 px-3 py-1.5 rounded-lg font-ui text-xs font-medium"
+                  style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
+                >
+                  Regenerate address
+                </button>
+                <button
+                  onClick={() => setInboxConfirmAction('remove')}
+                  className="flex-1 px-3 py-1.5 rounded-lg font-ui text-xs font-medium"
+                  style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--error)', border: '1px solid var(--border)' }}
+                >
+                  Remove address
+                </button>
+              </div>
             ) : (
               <p className="font-ui text-xs" style={{ color: 'var(--text-tertiary)' }}>
                 Get your inbox address from the Inbox tab.

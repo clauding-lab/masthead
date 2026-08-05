@@ -388,7 +388,7 @@ describe('InboxMessagePage — F3 (Opus fix round 1): transient errors are retry
     const { container } = await renderAndFlush();
 
     expect(container.textContent).not.toContain('Failed to fetch');
-    expect(container.textContent).toContain("Couldn't load this message. Check your connection and try again.");
+    expect(container.textContent).toContain('Check your connection and try again.');
     expect(consoleError).toHaveBeenCalledWith(expect.stringContaining('[inbox]'), 'Failed to fetch');
 
     consoleError.mockRestore();

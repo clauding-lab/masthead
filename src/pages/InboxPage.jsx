@@ -86,6 +86,31 @@ function OnboardingHint({ address }) {
 // text, so the plain "deferred note" only fires once quota has cleared but
 // a leftover deferredCount is still on the row; the near-quota banner is
 // gated off overQuotaSince so it never doubles up with the full-inbox one.
+// Final whole-branch review, F1: shown instead of a full-page swap when the
+// address is gone but retained messages remain (removeAddress() is
+// row-preserving — spec §5.2 says ingestion stops but messages stay
+// readable and still count against quota, and the Remove-address confirm
+// copy promises the same). Always tone="alert" — mail delivery being off is
+// something the user needs to notice.
+function NoAddressBanner({ onRequestAddress }) {
+  return (
+    <div
+      role="alert"
+      className="mx-4 my-2 px-3 py-2 rounded-lg font-ui text-xs flex items-center justify-between gap-3"
+      style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
+    >
+      <span>Mail delivery is off — get a new address to start receiving again</span>
+      <button
+        onClick={onRequestAddress}
+        className="font-ui text-xs font-medium px-2.5 py-1 rounded-md shrink-0"
+        style={{ backgroundColor: 'var(--accent)', color: 'var(--accent-contrast)' }}
+      >
+        Get address
+      </button>
+    </div>
+  );
+}
+
 function QuotaBanners({ bytesUsed, messageCount, overQuotaSince, deferredCount }) {
   const bytesRatio = bytesUsed / MAX_LIVE_BYTES;
   const countRatio = messageCount / MAX_LIVE_MESSAGES;
@@ -143,7 +168,12 @@ export default function InboxPage() {
   // request one. This deliberately does NOT key off addressLoaded — doing
   // so would either need a spinner that spins forever on a failed boot GET,
   // or duplicate this exact UI a second time for the false case.
-  if (!address) {
+  //
+  // Final whole-branch review, F1: gated on messages.length === 0 too — a
+  // removed address with retained messages must fall through to the list
+  // below (with NoAddressBanner), not have its whole page replaced by this
+  // "never had an address" card.
+  if (!address && messages.length === 0) {
     return (
       <>
         {error && <QuotaBanner text={error} tone="alert" />}
@@ -160,6 +190,7 @@ export default function InboxPage() {
   return (
     <div>
       {error && <QuotaBanner text={error} tone="alert" />}
+      {!address && <NoAddressBanner onRequestAddress={requestAddress} />}
       <QuotaBanners
         bytesUsed={bytesUsed}
         messageCount={messageCount}

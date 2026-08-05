@@ -227,6 +227,29 @@ describe('openMessage', () => {
     expect(inboxData.markRead).toHaveBeenCalledTimes(2);
   });
 
+  // Final whole-branch review, F3: unreadCount() filters `deleted_at IS
+  // NULL` server-side (lib/inboxData.js), so a tombstoned-but-unread row was
+  // never counted in the first place — decrementing on open would drive the
+  // badge below its true count. wasUnread must check BOTH read_at AND
+  // deleted_at.
+  it('opening a tombstoned-but-unread message does not decrement unreadCount (never counted in the first place)', async () => {
+    useInboxStore.setState({
+      messages: [{ id: 'm1', read_at: null, deleted_at: '2026-08-01T00:00:00.000Z' }],
+      unreadCount: 2,
+    });
+    inboxData.getMessage.mockResolvedValueOnce({
+      id: 'm1',
+      read_at: null,
+      deleted_at: '2026-08-01T00:00:00.000Z',
+      html_body: '<p>x</p>',
+    });
+    inboxData.markRead.mockResolvedValueOnce(undefined);
+
+    await useInboxStore.getState().openMessage('m1');
+
+    expect(useInboxStore.getState().unreadCount).toBe(2);
+  });
+
   it('catches a getMessage miss (PGRST116-style throw on a purged/foreign id) as store error state, not an unhandled rejection', async () => {
     inboxData.getMessage.mockRejectedValueOnce({ message: 'JSON object requested, multiple (or no) rows returned', code: 'PGRST116' });
 
@@ -700,6 +723,86 @@ describe('concurrency safety (T14 re-review probes)', () => {
     await Promise.all([useInboxStore.getState().remove('a'), useInboxStore.getState().openMessage('b')]);
 
     expect(useInboxStore.getState().unreadCount).toBeGreaterThanOrEqual(0);
+  });
+});
+
+// Final whole-branch review, F2: reset() clears state, but an
+// already-awaiting bootstrap()/fetchList() call that started BEFORE reset()
+// writes over the cleared state when it resolves afterward — a signed-out
+// user (or the next user on a shared device) can see the previous session's
+// messages/address repopulate. remove()/clearRead()'s rollback paths have
+// the same hazard: a write that fails after reset() must not resurrect a
+// tombstoned message into the freshly-reset store.
+describe('epoch fencing across reset() (final whole-branch review, F2)', () => {
+  it('fetchList: a reset while the list fetch is in flight discards the stale resolution, not just isLoading', async () => {
+    useInboxStore.setState({ messages: [], unreadCount: 0, isLoading: false, error: null });
+    let resolveList;
+    inboxData.listMessages.mockReturnValue(new Promise((resolve) => { resolveList = resolve; }));
+    inboxData.unreadCount.mockResolvedValue(7);
+
+    const pending = useInboxStore.getState().fetchList();
+    useInboxStore.getState().reset();
+
+    resolveList([{ id: 'ghost-from-previous-session', read_at: null }]);
+    await pending;
+
+    const state = useInboxStore.getState();
+    expect(state.messages).toEqual([]);
+    expect(state.unreadCount).toBe(0);
+    expect(state.address).toBeNull();
+  });
+
+  it('bootstrap: a reset while the address GET is in flight discards the stale resolution (no ghost address)', async () => {
+    useInboxStore.setState({ address: null, addressLoaded: false, unreadCount: 0 });
+    let resolveAuthed;
+    authed.mockReturnValue(new Promise((resolve) => { resolveAuthed = resolve; }));
+    inboxData.unreadCount.mockResolvedValue(4);
+
+    const pending = useInboxStore.getState().bootstrap();
+    useInboxStore.getState().reset();
+
+    resolveAuthed(ADDRESS_RESULT);
+    await pending;
+
+    const state = useInboxStore.getState();
+    expect(state.address).toBeNull();
+    expect(state.addressLoaded).toBe(false);
+    expect(state.unreadCount).toBe(0);
+  });
+
+  it('remove: a rollback after reset does not resurrect a message into the reset store', async () => {
+    useInboxStore.setState({ messages: [{ id: 'm1', read_at: null }], unreadCount: 1, error: null });
+    let rejectRemove;
+    inboxData.removeMessage.mockReturnValue(new Promise((_resolve, reject) => { rejectRemove = reject; }));
+
+    const pending = useInboxStore.getState().remove('m1');
+    useInboxStore.getState().reset();
+
+    rejectRemove({ message: 'network down' });
+    await pending;
+
+    const state = useInboxStore.getState();
+    expect(state.messages).toEqual([]);
+    expect(state.error).toBeNull();
+  });
+
+  it('clearRead: a rollback after reset does not resurrect messages into the reset store', async () => {
+    useInboxStore.setState({
+      messages: [{ id: 'm1', read_at: '2026-08-01T00:00:00.000Z' }],
+      error: null,
+    });
+    let rejectClear;
+    inboxData.clearRead.mockReturnValue(new Promise((_resolve, reject) => { rejectClear = reject; }));
+
+    const pending = useInboxStore.getState().clearRead();
+    useInboxStore.getState().reset();
+
+    rejectClear({ message: 'network down' });
+    await pending;
+
+    const state = useInboxStore.getState();
+    expect(state.messages).toEqual([]);
+    expect(state.error).toBeNull();
   });
 });
 

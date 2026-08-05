@@ -363,6 +363,60 @@ describe('InboxPage — window focus refetch', () => {
   });
 });
 
+// Final whole-branch review, F1: removeAddress() is row-preserving —
+// messages/bytesUsed/messageCount stay populated while address goes null.
+// The old `if (!address)` early return replaced the whole page with the
+// "Get your address" card, discarding retained mail the spec (§5.2) and the
+// Remove-address confirm copy both promise stays readable.
+describe('InboxPage — address removed, messages retained (final whole-branch review, F1)', () => {
+  const MESSAGES = [
+    {
+      id: 'm1',
+      from_name: 'The Overhead',
+      from_email: 'news@overhead.example',
+      subject: 'Weekly markets digest',
+      excerpt: 'Rates and remittances.',
+      received_at: new Date().toISOString(),
+      read_at: null,
+      auth_results: 'spf=pass dkim=pass dmarc=pass',
+    },
+  ];
+
+  it('renders the message list and an alert-tone banner instead of replacing the whole page with the get-address card', () => {
+    useInboxStore.mockReturnValue(baseInboxState({ addressLoaded: true, address: null, messages: MESSAGES }));
+
+    const { container } = renderPage();
+
+    expect(container.textContent).toContain('Weekly markets digest');
+    expect(container.textContent).toContain('Mail delivery is off');
+    expect(findButtonByText(container, 'Get your address')).toBeFalsy();
+    expect(container.querySelector('[role="alert"]')).toBeTruthy();
+  });
+
+  it('the banner button calls requestAddress', () => {
+    const requestAddress = vi.fn();
+    useInboxStore.mockReturnValue(
+      baseInboxState({ addressLoaded: true, address: null, messages: MESSAGES, requestAddress })
+    );
+
+    const { container } = renderPage();
+    fireClick(findButtonByText(container, 'Get address'));
+
+    expect(requestAddress).toHaveBeenCalledTimes(1);
+  });
+
+  // The true never-had-address state — messages empty — must still show the
+  // get-address card, not the list+banner composition above.
+  it('the true never-had-address state (messages empty) still shows the get-address card', () => {
+    useInboxStore.mockReturnValue(baseInboxState({ addressLoaded: true, address: null, messages: [] }));
+
+    const { container } = renderPage();
+
+    expect(findButtonByText(container, 'Get your address')).toBeTruthy();
+    expect(container.textContent).not.toContain('Mail delivery is off');
+  });
+});
+
 describe('InboxPage — quota banners', () => {
   // Fix round 1, F4: both original fixtures sat at exactly 0.90, so
   // QUOTA_WARNING_RATIO could silently drift from 0.8 to 0.9 with every

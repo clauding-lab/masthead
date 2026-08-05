@@ -212,6 +212,24 @@ describe('SettingsPage — Email Inbox management, signed in, address present', 
   });
 });
 
+// Final whole-branch review, F1: removeAddress() is row-preserving — the
+// meter and Clear-read row must survive address removal as long as retained
+// messages still exist, while Regenerate/Remove stay address-gated (there is
+// no address left to regenerate or remove).
+describe('SettingsPage — Email Inbox management, address removed, messages retained (final whole-branch review, F1)', () => {
+  it('shows the quota meter and Clear read row with address null, given messageCount > 0', () => {
+    useInboxStore.mockReturnValue(baseInboxState({ address: null, bytesUsed: 5 * MB, messageCount: 12 }));
+
+    const { container } = renderPage();
+
+    expect(container.textContent).toContain('12 messages');
+    expect(findButtonByText(container, 'Clear read messages')).toBeTruthy();
+    expect(findButtonByText(container, 'Regenerate address')).toBeFalsy();
+    expect(findButtonByText(container, 'Remove address')).toBeFalsy();
+    expect(container.textContent).toContain('Inbox tab');
+  });
+});
+
 describe('SettingsPage — Regenerate address (ConfirmSheet-gated)', () => {
   const ADDRESS = 'reader-xy9k@masthead.clauding-lab.com';
 

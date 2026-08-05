@@ -8,7 +8,12 @@ export async function getAccessToken() {
   return data?.session?.access_token || null;
 }
 
-async function authed(method, path, body) {
+// Exported (Fix round 1, F8): inboxStore.js reuses this generic
+// bearer-token fetch helper for /api/inbox-address rather than duplicating
+// it — this store isn't premium-specific, `authed` never was either (path
+// is a parameter), and premiumApi.test.js already covers its header/error
+// contract.
+export async function authed(method, path, body) {
   const token = await getAccessToken();
   if (!token) throw new Error('Sign in required');
   const res = await fetch(path, {

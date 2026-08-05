@@ -8,11 +8,15 @@ vi.mock('../lib/inboxData', () => ({
   clearRead: vi.fn(),
   unreadCount: vi.fn(),
 }));
-vi.mock('../lib/supabase', () => ({
-  supabase: { auth: { getSession: vi.fn() } },
+// Fix round 1, F8: inboxStore now imports getAccessToken/authed from
+// premiumApi.js rather than duplicating them — mock that module the same
+// way feedStore.test.js does, one level below the store under test.
+vi.mock('../lib/premiumApi', () => ({
+  getAccessToken: vi.fn(),
+  authed: vi.fn(),
 }));
 
-import { supabase } from '../lib/supabase';
+import { getAccessToken, authed } from '../lib/premiumApi';
 import * as inboxData from '../lib/inboxData';
 import useInboxStore from './inboxStore';
 
@@ -26,16 +30,6 @@ const ADDRESS_RESULT = {
   overQuotaSince: null,
   deferredCount: 0,
 };
-
-function mockFetchOnce(status, body) {
-  const fn = vi.fn().mockResolvedValue({
-    ok: status >= 200 && status < 300,
-    status,
-    json: () => Promise.resolve(body),
-  });
-  globalThis.fetch = fn;
-  return fn;
-}
 
 const INITIAL_STATE = {
   address: null,
@@ -53,12 +47,12 @@ const INITIAL_STATE = {
 beforeEach(() => {
   vi.clearAllMocks();
   useInboxStore.setState(INITIAL_STATE);
-  supabase.auth.getSession.mockResolvedValue({ data: { session: { access_token: TOKEN } } });
+  getAccessToken.mockResolvedValue(TOKEN);
 });
 
 describe('bootstrap', () => {
   it('loads the address and unread count in one go', async () => {
-    mockFetchOnce(200, ADDRESS_RESULT);
+    authed.mockResolvedValue(ADDRESS_RESULT);
     inboxData.unreadCount.mockResolvedValue(4);
 
     await useInboxStore.getState().bootstrap();
@@ -73,32 +67,35 @@ describe('bootstrap', () => {
     expect(state.addressLoaded).toBe(true);
   });
 
-  it('sends the address GET with a bearer token', async () => {
-    const fetchMock = mockFetchOnce(200, ADDRESS_RESULT);
+  it('calls authed with GET and the address API path', async () => {
+    authed.mockResolvedValue(ADDRESS_RESULT);
     inboxData.unreadCount.mockResolvedValue(0);
 
     await useInboxStore.getState().bootstrap();
 
-    const [url, opts] = fetchMock.mock.calls[0];
-    expect(url).toBe(API);
-    expect(opts.method).toBe('GET');
-    expect(opts.headers.Authorization).toBe(`Bearer ${TOKEN}`);
+    expect(authed).toHaveBeenCalledWith('GET', API);
   });
 
-  it('gates on an active session: signed out (no access token) calls neither the address API nor unreadCount', async () => {
-    supabase.auth.getSession.mockResolvedValue({ data: { session: null } });
-    const fetchMock = vi.fn();
-    globalThis.fetch = fetchMock;
+  // Fix round 1, F7: pin the gate's actual value (no console noise on a
+  // signed-out boot — that's the ordinary case, not a failure), not just
+  // "authed wasn't called" (which authed's own internal token check would
+  // also produce, making the earlier version of this test vacuous about
+  // the explicit early-return gate specifically).
+  it('gates on an active session: signed out (no access token) calls neither authed nor unreadCount, and stays silent', async () => {
+    getAccessToken.mockResolvedValue(null);
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     await useInboxStore.getState().bootstrap();
 
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(authed).not.toHaveBeenCalled();
     expect(inboxData.unreadCount).not.toHaveBeenCalled();
     expect(useInboxStore.getState().addressLoaded).toBe(false);
+    expect(consoleSpy).not.toHaveBeenCalled();
+    consoleSpy.mockRestore();
   });
 
   it('swallows a failure from the address API — never throws, boot-safe', async () => {
-    mockFetchOnce(500, {});
+    authed.mockRejectedValue(new Error('Request failed: 500'));
     inboxData.unreadCount.mockResolvedValue(0);
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
@@ -110,7 +107,7 @@ describe('bootstrap', () => {
   });
 
   it('swallows a failure from unreadCount but keeps the address data already applied', async () => {
-    mockFetchOnce(200, ADDRESS_RESULT);
+    authed.mockResolvedValue(ADDRESS_RESULT);
     inboxData.unreadCount.mockRejectedValue({ message: 'permission denied', code: '42501' });
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
@@ -129,6 +126,7 @@ describe('fetchList', () => {
   it('loads messages into state', async () => {
     const rows = [{ id: 'm1', read_at: null }, { id: 'm2', read_at: '2026-08-01T00:00:00.000Z' }];
     inboxData.listMessages.mockResolvedValue(rows);
+    inboxData.unreadCount.mockResolvedValue(1);
 
     await useInboxStore.getState().fetchList();
 
@@ -136,13 +134,40 @@ describe('fetchList', () => {
     expect(useInboxStore.getState().isLoading).toBe(false);
   });
 
-  it('sets an error string (not the raw plain-object error) on failure', async () => {
+  // Scope add (controller ruling, T15 note): fetchList must also refresh
+  // unreadCount, or the badge and an open list silently disagree once new
+  // mail arrives while the tab is open.
+  it('refreshes unreadCount from the server after the list applies', async () => {
+    inboxData.listMessages.mockResolvedValue([]);
+    inboxData.unreadCount.mockResolvedValue(7);
+
+    await useInboxStore.getState().fetchList();
+
+    expect(useInboxStore.getState().unreadCount).toBe(7);
+  });
+
+  it('applies the fetched list even when the unreadCount refresh rejects, and does not set an error (swallowed like bootstrap)', async () => {
+    const rows = [{ id: 'm1', read_at: null }];
+    inboxData.listMessages.mockResolvedValue(rows);
+    inboxData.unreadCount.mockRejectedValue({ message: 'nope' });
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    await useInboxStore.getState().fetchList();
+
+    expect(useInboxStore.getState().messages).toEqual(rows);
+    expect(useInboxStore.getState().error).toBeNull();
+    expect(consoleSpy).toHaveBeenCalled();
+    consoleSpy.mockRestore();
+  });
+
+  it('sets an error string (not the raw plain-object error) on a list-fetch failure, and never attempts the count refresh', async () => {
     inboxData.listMessages.mockRejectedValue({ message: 'boom', code: 'XXX' });
 
     await useInboxStore.getState().fetchList();
 
     expect(useInboxStore.getState().error).toBe('boom');
     expect(useInboxStore.getState().isLoading).toBe(false);
+    expect(inboxData.unreadCount).not.toHaveBeenCalled();
   });
 });
 
@@ -167,11 +192,15 @@ describe('openMessage', () => {
     expect(state.unreadCount).toBe(1);
   });
 
-  it('re-opening an already-read message calls markRead again but never decrements unreadCount below its floor (gated on the fetched row\'s own read_at)', async () => {
+  // Fix round 1, F2: unreadCount starts at 3, not 0 — with the old fixture
+  // (0), deleting the `wasUnread ? ... : state.unreadCount` gate entirely
+  // still passes, because Math.max(0, 0 - 1) floors right back to 0.
+  // Starting above the floor means a deleted gate visibly breaks this.
+  it('re-opening an already-read message calls markRead again but never decrements unreadCount (gate pinned above the zero floor)', async () => {
     const readAt = '2026-08-01T00:00:00.000Z';
     useInboxStore.setState({
       messages: [{ id: 'm1', read_at: readAt }],
-      unreadCount: 0,
+      unreadCount: 3,
     });
     inboxData.getMessage.mockResolvedValueOnce({ id: 'm1', read_at: readAt, html_body: '<p>x</p>' });
     inboxData.markRead.mockResolvedValueOnce(undefined);
@@ -179,21 +208,21 @@ describe('openMessage', () => {
     await useInboxStore.getState().openMessage('m1');
 
     expect(inboxData.markRead).toHaveBeenCalledTimes(1);
-    expect(useInboxStore.getState().unreadCount).toBe(0);
+    expect(useInboxStore.getState().unreadCount).toBe(3);
   });
 
-  it('opening the same message twice — first unread, then already-read on the second fetch — decrements exactly once', async () => {
-    useInboxStore.setState({ messages: [{ id: 'm1', read_at: null }], unreadCount: 1 });
+  it('opening the same message twice — first unread, then already-read on the second fetch — decrements exactly once (starts above the zero floor)', async () => {
+    useInboxStore.setState({ messages: [{ id: 'm1', read_at: null }], unreadCount: 5 });
     inboxData.getMessage
       .mockResolvedValueOnce({ id: 'm1', read_at: null, html_body: '<p>x</p>' })
       .mockResolvedValueOnce({ id: 'm1', read_at: '2026-08-01T00:00:00.000Z', html_body: '<p>x</p>' });
     inboxData.markRead.mockResolvedValue(undefined);
 
     await useInboxStore.getState().openMessage('m1');
-    expect(useInboxStore.getState().unreadCount).toBe(0);
+    expect(useInboxStore.getState().unreadCount).toBe(4);
 
     await useInboxStore.getState().openMessage('m1');
-    expect(useInboxStore.getState().unreadCount).toBe(0);
+    expect(useInboxStore.getState().unreadCount).toBe(4);
     expect(inboxData.markRead).toHaveBeenCalledTimes(2);
   });
 
@@ -204,6 +233,20 @@ describe('openMessage', () => {
 
     expect(result).toBeNull();
     expect(useInboxStore.getState().error).toBe('JSON object requested, multiple (or no) rows returned');
+    expect(inboxData.markRead).not.toHaveBeenCalled();
+  });
+
+  // Fix round 1, F1: inboxData.getMessage RESOLVES null (its own
+  // `!supabase` guard) rather than throwing — without the explicit null
+  // check, `message.read_at` below is a TypeError on null, an unhandled
+  // rejection rather than a caught store error.
+  it('resolves with a store error, not a TypeError rejection, when getMessage resolves null', async () => {
+    inboxData.getMessage.mockResolvedValueOnce(null);
+
+    const result = await useInboxStore.getState().openMessage('m1');
+
+    expect(result).toBeNull();
+    expect(useInboxStore.getState().error).toBe('Message not found');
     expect(inboxData.markRead).not.toHaveBeenCalled();
   });
 
@@ -257,13 +300,58 @@ describe('remove', () => {
     expect(useInboxStore.getState().error).toBe('network down');
   });
 
-  it('does not decrement unreadCount when removing an already-read message', async () => {
-    useInboxStore.setState({ messages: [{ id: 'm1', read_at: '2026-08-01T00:00:00.000Z' }], unreadCount: 0 });
+  // Fix round 1, F3: unreadCount starts at 3, not 0 — same floor-masking
+  // problem as F2.
+  it('does not decrement unreadCount when removing an already-read message (gate pinned above the zero floor)', async () => {
+    useInboxStore.setState({ messages: [{ id: 'm1', read_at: '2026-08-01T00:00:00.000Z' }], unreadCount: 3 });
     inboxData.removeMessage.mockResolvedValue(undefined);
 
     await useInboxStore.getState().remove('m1');
 
+    expect(useInboxStore.getState().unreadCount).toBe(3);
+  });
+
+  // Fix round 1, F5: a whole-array snapshot rollback would resurrect m2
+  // (tombstoned by a concurrent, already-succeeded remove()) when m1's
+  // removal fails afterward. The fix re-inserts only the message THIS
+  // call removed.
+  it('a failed removal re-inserts only its own message, not a sibling tombstoned by a concurrent remove() that already succeeded', async () => {
+    const m1 = { id: 'm1', read_at: null };
+    const m2 = { id: 'm2', read_at: null };
+    useInboxStore.setState({ messages: [m1, m2], unreadCount: 2 });
+    let rejectM1;
+    inboxData.removeMessage.mockImplementation((id) => {
+      if (id === 'm1') return new Promise((_resolve, reject) => { rejectM1 = reject; });
+      return Promise.resolve(undefined);
+    });
+
+    const pendingM1 = useInboxStore.getState().remove('m1');
+    // m1 is optimistically gone; m2 still present.
+    expect(useInboxStore.getState().messages).toEqual([m2]);
+
+    // A concurrent remove() for m2 completes successfully while m1's
+    // write is still in flight.
+    await useInboxStore.getState().remove('m2');
+    expect(useInboxStore.getState().messages).toEqual([]);
     expect(useInboxStore.getState().unreadCount).toBe(0);
+
+    // Now m1's write fails — its rollback must bring back ONLY m1.
+    rejectM1({ message: 'network down' });
+    await pendingM1;
+
+    expect(useInboxStore.getState().messages).toEqual([m1]);
+    expect(useInboxStore.getState().unreadCount).toBe(1);
+  });
+
+  // Fix round 1, F6: every other action clears a stale error on its
+  // optimistic set; remove() and clearRead() previously didn't.
+  it('clears a stale error on a successful removal', async () => {
+    useInboxStore.setState({ messages: [{ id: 'm1', read_at: null }], unreadCount: 1, error: 'previous failure' });
+    inboxData.removeMessage.mockResolvedValue(undefined);
+
+    await useInboxStore.getState().remove('m1');
+
+    expect(useInboxStore.getState().error).toBeNull();
   });
 });
 
@@ -292,63 +380,115 @@ describe('clearRead', () => {
     expect(useInboxStore.getState().messages).toEqual(initial);
     expect(useInboxStore.getState().error).toBe('nope');
   });
+
+  // Fix round 1, F5 (same review applied to clearRead's rollback shape): a
+  // whole-array snapshot restore would drop a message that arrived
+  // concurrently (e.g. via fetchList/openMessage) while the clearRead
+  // write was in flight. The fix re-inserts only the read messages THIS
+  // call removed, merged onto whatever is present when the failure lands.
+  it('a failed clearRead re-inserts only the messages it removed, not a stale full-array snapshot — a concurrently-added message survives', async () => {
+    const readA = { id: 'a', read_at: '2026-08-01T00:00:00.000Z' };
+    const unreadB = { id: 'b', read_at: null };
+    useInboxStore.setState({ messages: [readA, unreadB] });
+    let rejectClear;
+    inboxData.clearRead.mockReturnValue(new Promise((_resolve, reject) => { rejectClear = reject; }));
+
+    const pending = useInboxStore.getState().clearRead();
+    expect(useInboxStore.getState().messages).toEqual([unreadB]);
+
+    // A new message arrives concurrently while the clearRead write is
+    // still in flight (e.g. fetchList/openMessage updating state).
+    const newC = { id: 'c', read_at: null };
+    useInboxStore.setState((state) => ({ messages: [...state.messages, newC] }));
+
+    rejectClear({ message: 'nope' });
+    await pending;
+
+    const messages = useInboxStore.getState().messages;
+    expect(messages).toEqual(expect.arrayContaining([readA, unreadB, newC]));
+    expect(messages).toHaveLength(3);
+  });
+
+  it('clears a stale error on a successful clearRead', async () => {
+    useInboxStore.setState({
+      messages: [{ id: 'm1', read_at: '2026-08-01T00:00:00.000Z' }],
+      error: 'previous failure',
+    });
+    inboxData.clearRead.mockResolvedValue(undefined);
+
+    await useInboxStore.getState().clearRead();
+
+    expect(useInboxStore.getState().error).toBeNull();
+  });
 });
 
 describe('requestAddress / regenerateAddress / removeAddress', () => {
-  it('requestAddress POSTs {} and applies the result', async () => {
-    const fetchMock = mockFetchOnce(200, ADDRESS_RESULT);
+  it('requestAddress POSTs {} via authed and applies the result', async () => {
+    authed.mockResolvedValue(ADDRESS_RESULT);
 
     await useInboxStore.getState().requestAddress();
 
-    const [url, opts] = fetchMock.mock.calls[0];
-    expect(url).toBe(API);
-    expect(opts.method).toBe('POST');
-    expect(JSON.parse(opts.body)).toEqual({});
+    expect(authed).toHaveBeenCalledWith('POST', API, {});
     expect(useInboxStore.getState().address).toBe(ADDRESS_RESULT.address);
     expect(useInboxStore.getState().addressLoaded).toBe(true);
   });
 
-  it('regenerateAddress POSTs {regenerate:true} and applies the new address', async () => {
+  it('regenerateAddress POSTs {regenerate:true} via authed and applies the new address', async () => {
     const rotated = { ...ADDRESS_RESULT, address: 'reader-newslug@mail.masthead.app' };
-    const fetchMock = mockFetchOnce(200, rotated);
+    authed.mockResolvedValue(rotated);
 
     await useInboxStore.getState().regenerateAddress();
 
-    const [, opts] = fetchMock.mock.calls[0];
-    expect(opts.method).toBe('POST');
-    expect(JSON.parse(opts.body)).toEqual({ regenerate: true });
+    expect(authed).toHaveBeenCalledWith('POST', API, { regenerate: true });
     expect(useInboxStore.getState().address).toBe(rotated.address);
   });
 
-  it('removeAddress DELETEs and applies the disabled (null-address) result', async () => {
+  it('removeAddress DELETEs via authed and applies the disabled (null-address) result', async () => {
     const disabled = { address: null, bytesUsed: 0, messageCount: 0, overQuotaSince: null, deferredCount: 0 };
-    const fetchMock = mockFetchOnce(200, disabled);
+    authed.mockResolvedValue(disabled);
     useInboxStore.setState({ address: ADDRESS_RESULT.address });
 
     await useInboxStore.getState().removeAddress();
 
-    const [, opts] = fetchMock.mock.calls[0];
-    expect(opts.method).toBe('DELETE');
+    expect(authed).toHaveBeenCalledWith('DELETE', API);
     expect(useInboxStore.getState().address).toBeNull();
     expect(useInboxStore.getState().addressLoaded).toBe(true);
   });
 
+  // Fix round 1, F4: overQuotaSince/deferredCount fixtures previously
+  // matched the store's own initial-state defaults (null / 0), so
+  // deleting those two keys from applyAddressResult kept every existing
+  // assertion green. Non-default values pin that the mapping actually
+  // copies them through.
+  it('propagates overQuotaSince and deferredCount from the server response, not just the default null/0', async () => {
+    const quotaResult = {
+      address: ADDRESS_RESULT.address,
+      bytesUsed: 900,
+      messageCount: 500,
+      overQuotaSince: '2026-08-02T09:00:00.000Z',
+      deferredCount: 7,
+    };
+    authed.mockResolvedValue(quotaResult);
+
+    await useInboxStore.getState().requestAddress();
+
+    expect(useInboxStore.getState().overQuotaSince).toBe('2026-08-02T09:00:00.000Z');
+    expect(useInboxStore.getState().deferredCount).toBe(7);
+  });
+
   it('sets an error and never throws when the server rejects the request', async () => {
-    mockFetchOnce(409, { error: 'Already have an address' });
+    authed.mockRejectedValue(new Error('Already have an address'));
 
     await expect(useInboxStore.getState().requestAddress()).resolves.toBeUndefined();
 
     expect(useInboxStore.getState().error).toBe('Already have an address');
   });
 
-  it('sets an error when there is no access token (signed out) and never calls fetch', async () => {
-    supabase.auth.getSession.mockResolvedValue({ data: { session: null } });
-    const fetchMock = vi.fn();
-    globalThis.fetch = fetchMock;
+  it('sets an error when there is no access token (signed out)', async () => {
+    authed.mockRejectedValue(new Error('Sign in required'));
 
     await useInboxStore.getState().requestAddress();
 
-    expect(fetchMock).not.toHaveBeenCalled();
     expect(useInboxStore.getState().error).toBe('Sign in required');
   });
 });

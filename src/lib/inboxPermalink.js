@@ -13,6 +13,13 @@
 // consideration entirely. End-anchoring (`$`) plus a strict UUID-shaped
 // final path segment is also what keeps this origin-INDEPENDENT: any host
 // works, including a future Phase-4 domain, as long as the path matches.
+//
+// Deliberately prefix-tolerant (no `^` anchor): this predicate is the
+// durable half of `isInboxRecord`'s extractor ban (Task 17) and must keep
+// matching if the app is ever served under a base path. A false positive
+// here just re-checks a record that wasn't actually inbox-sourced (safe); a
+// false negative would let an inbox record slip past the extractor ban
+// (unsafe). Tightening this regex narrows the safe side of that tradeoff.
 const PERMALINK_PATH_RE =
   /\/inbox\/message\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -30,11 +37,15 @@ export function inboxPermalink(id) {
  */
 export function isInboxPermalink(url) {
   if (typeof url !== 'string') return false;
-  let pathname;
+  let parsed;
   try {
-    pathname = new URL(url).pathname;
+    parsed = new URL(url);
   } catch {
     return false;
   }
-  return PERMALINK_PATH_RE.test(pathname);
+  // Scheme gate: without this, javascript:/data:/file: URLs whose opaque
+  // payload happens to end in a valid-looking path would still pass the
+  // path check below (new URL() still parses a pathname off them).
+  if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return false;
+  return PERMALINK_PATH_RE.test(parsed.pathname);
 }

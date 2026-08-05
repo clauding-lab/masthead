@@ -15,7 +15,7 @@ vi.mock('./supabase', () => ({
   supabase: {
     from: (table) => {
       const record = {
-        table, select: null, selectOpts: null, updatePatch: null, filters: [], order: null, limit: null,
+        table, select: null, selectOpts: null, updatePatch: null, filters: [], order: null, limit: null, single: false,
       };
       calls.push(record);
       const chain = {
@@ -27,7 +27,7 @@ vi.mock('./supabase', () => ({
         not(col, subOp, val) { record.filters.push({ op: 'not', col, subOp, val }); return chain; },
         order(col, opts) { record.order = { col, opts }; return chain; },
         limit(n) { record.limit = n; return chain; },
-        single() { return chain; },
+        single() { record.single = true; return chain; },
         then(resolve, reject) { return Promise.resolve(nextResult).then(resolve, reject); },
       };
       return chain;
@@ -95,12 +95,14 @@ describe('listMessages', () => {
 });
 
 describe('getMessage', () => {
-  it('fetches a single row by id, including body columns', async () => {
+  it('fetches a single row by id via select(*).single(), including body columns', async () => {
     const row = { id: 'm1', html_body: '<p>x</p>', text_body: 'x' };
     nextResult = { data: row, error: null };
     const result = await getMessage('m1');
     expect(result).toEqual(row);
     expect(calls[0].table).toBe('user_inbox_messages');
+    expect(calls[0].select).toBe('*');
+    expect(calls[0].single).toBe(true);
     expect(calls[0].filters).toContainEqual({ op: 'eq', col: 'id', val: 'm1' });
   });
 
@@ -127,12 +129,13 @@ describe('markRead', () => {
 });
 
 describe('removeMessage', () => {
-  it('tombstones via UPDATE deleted_at, never DELETE', async () => {
+  it('tombstones via UPDATE deleted_at, scoped to still-live rows (idempotent — never resets an already-set purge clock), never DELETE', async () => {
     nextResult = { error: null };
     await removeMessage('m1');
     const call = calls[0];
     expect(typeof call.updatePatch.deleted_at).toBe('string');
     expect(call.filters).toContainEqual({ op: 'eq', col: 'id', val: 'm1' });
+    expect(call.filters).toContainEqual({ op: 'is', col: 'deleted_at', val: null });
     expect(deleteCalls).toHaveLength(0);
   });
 
@@ -178,5 +181,28 @@ describe('unreadCount', () => {
   it('throws the supabase error when the count query fails', async () => {
     nextResult = { count: null, error: { message: 'nope' } };
     await expect(unreadCount()).rejects.toEqual({ message: 'nope' });
+  });
+});
+
+// src/lib/supabase.js exports `supabase: null` when VITE_SUPABASE_URL/
+// VITE_SUPABASE_ANON_KEY are unset — every function here must guard that
+// (sibling idiom: src/lib/sync.js, src/lib/premiumApi.js,
+// src/stores/authStore.js), not dereference `.from` on null. Verified via a
+// separate module instance (vi.doMock + resetModules + dynamic import) so
+// the rest of this file's live chain-mock is untouched.
+describe('null supabase client guard', () => {
+  it('returns safe fallbacks instead of throwing when supabase is not configured', async () => {
+    vi.resetModules();
+    vi.doMock('./supabase', () => ({ supabase: null }));
+    const unconfigured = await import('./inboxData.js');
+
+    await expect(unconfigured.listMessages()).resolves.toEqual([]);
+    await expect(unconfigured.getMessage('m1')).resolves.toBeNull();
+    await expect(unconfigured.markRead('m1')).resolves.toBeUndefined();
+    await expect(unconfigured.removeMessage('m1')).resolves.toBeUndefined();
+    await expect(unconfigured.clearRead()).resolves.toBeUndefined();
+    await expect(unconfigured.unreadCount()).resolves.toBe(0);
+
+    vi.doUnmock('./supabase');
   });
 });

@@ -40,6 +40,12 @@ describe('isInboxPermalink', () => {
     expect(isInboxPermalink(`https://x.test/${UUID}`)).toBe(false);
   });
 
+  it('rejects non-http(s) schemes even when the path shape matches (scheme gate)', () => {
+    expect(isInboxPermalink(`javascript:/inbox/message/${UUID}`)).toBe(false);
+    expect(isInboxPermalink(`data:text/plain,/inbox/message/${UUID}`)).toBe(false);
+    expect(isInboxPermalink(`file:///inbox/message/${UUID}`)).toBe(false);
+  });
+
   it('rejects non-string and unparseable input without throwing', () => {
     expect(isInboxPermalink(null)).toBe(false);
     expect(isInboxPermalink(undefined)).toBe(false);

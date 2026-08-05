@@ -6,6 +6,11 @@
 // and nothing else. Removal is always a `deleted_at` tombstone (landmine
 // 23/25: there is no DELETE grant, and a no-undelete trigger forbids
 // resurrecting one) — this file must never call `.delete()`.
+//
+// `supabase` is `null` when VITE_SUPABASE_URL/ANON_KEY are unset
+// (src/lib/supabase.js) — every function guards with `if (!supabase) return
+// ...` up front, matching the sibling idiom in src/lib/sync.js,
+// src/lib/premiumApi.js, and src/stores/authStore.js.
 import { supabase } from './supabase';
 
 const TABLE = 'user_inbox_messages';
@@ -21,6 +26,7 @@ const LIST_COLUMNS =
  * @returns {Promise<object[]>}
  */
 export async function listMessages({ limit = 100 } = {}) {
+  if (!supabase) return [];
   const { data, error } = await supabase
     .from(TABLE)
     .select(LIST_COLUMNS)
@@ -33,9 +39,10 @@ export async function listMessages({ limit = 100 } = {}) {
 
 /**
  * @param {string} id
- * @returns {Promise<object>}
+ * @returns {Promise<object|null>}
  */
 export async function getMessage(id) {
+  if (!supabase) return null;
   const { data, error } = await supabase.from(TABLE).select('*').eq('id', id).single();
   if (error) throw error;
   return data;
@@ -46,6 +53,7 @@ export async function getMessage(id) {
  * @returns {Promise<void>}
  */
 export async function markRead(id) {
+  if (!supabase) return;
   const { error } = await supabase
     .from(TABLE)
     .update({ read_at: new Date().toISOString() })
@@ -53,16 +61,21 @@ export async function markRead(id) {
   if (error) throw error;
 }
 
-// Tombstone, never a row delete — see file header.
+// Tombstone, never a row delete — see file header. Also filters
+// `deleted_at IS NULL` so re-removing an already-tombstoned row is a no-op:
+// without it, calling this twice would push `deleted_at` forward each time,
+// resetting the 30-day purge clock (`lib/inboxPurge.js`) indefinitely.
 /**
  * @param {string} id
  * @returns {Promise<void>}
  */
 export async function removeMessage(id) {
+  if (!supabase) return;
   const { error } = await supabase
     .from(TABLE)
     .update({ deleted_at: new Date().toISOString() })
-    .eq('id', id);
+    .eq('id', id)
+    .is('deleted_at', null);
   if (error) throw error;
 }
 
@@ -72,6 +85,7 @@ export async function removeMessage(id) {
  * @returns {Promise<void>}
  */
 export async function clearRead() {
+  if (!supabase) return;
   const { error } = await supabase
     .from(TABLE)
     .update({ deleted_at: new Date().toISOString() })
@@ -84,6 +98,7 @@ export async function clearRead() {
  * @returns {Promise<number>}
  */
 export async function unreadCount() {
+  if (!supabase) return 0;
   const { count, error } = await supabase
     .from(TABLE)
     .select('id', { count: 'exact', head: true })

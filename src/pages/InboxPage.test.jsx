@@ -1,10 +1,19 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
-import { renderComponent, cleanupRendered, fireClick } from '../test/domTestUtils';
+import { renderComponent, cleanupRendered, fireClick, fireClickAsync } from '../test/domTestUtils';
 
 vi.mock('../stores/inboxStore', () => ({ default: vi.fn() }));
 vi.mock('../stores/authStore', () => ({ default: vi.fn() }));
+// Isolate InboxPage's own branching from PullToRefresh's real touch-gesture
+// internals (matches FeedLayout.test.jsx's convention of stubbing child
+// components) — Fix round 1, F6 needs a stable marker to assert the list
+// state actually wraps its content in the pull-to-refresh gesture, which
+// the real component has no visible DOM signal for at rest (pullDistance 0
+// renders no text, no distinguishing class).
+vi.mock('../components/PullToRefresh', () => ({
+  default: ({ children }) => <div data-testid="pull-to-refresh">{children}</div>,
+}));
 
 import useInboxStore from '../stores/inboxStore';
 import useAuthStore from '../stores/authStore';
@@ -92,7 +101,7 @@ describe('InboxPage — signed-in, addressLoaded, no address', () => {
     expect(requestAddress).toHaveBeenCalledTimes(1);
   });
 
-  it('surfaces a request-address failure via the store error string', () => {
+  it('surfaces a request-address failure via the store error string, announced as an alert', () => {
     useInboxStore.mockReturnValue(
       baseInboxState({ addressLoaded: true, address: null, error: 'Already have an address' })
     );
@@ -100,6 +109,10 @@ describe('InboxPage — signed-in, addressLoaded, no address', () => {
     const { container } = renderPage();
 
     expect(container.textContent).toContain('Already have an address');
+    // Fix round 1, F8: a failure is an alert (role="alert"), not an
+    // informational banner (role="status" — used by the quota/deferred
+    // banners elsewhere in this page).
+    expect(container.querySelector('[role="alert"]')).toBeTruthy();
   });
 
   // Binding ruling: addressLoaded is NOT a loading flag. never-ran /
@@ -116,8 +129,43 @@ describe('InboxPage — signed-in, addressLoaded, no address', () => {
   });
 });
 
+// Fix round 1, F1: an empty `messages` array doesn't mean "no mail" until
+// the first fetchList has actually resolved — bootstrap/fetchList leave
+// `messages: []` for the whole in-flight duration, and a returning user
+// with 200 messages would otherwise see the "Your inbox is ready" onboarding
+// hint flash on every cold start.
+describe('InboxPage — loading state', () => {
+  it('shows a loading skeleton, not the onboarding hint, while isLoading and no messages have loaded yet', () => {
+    useInboxStore.mockReturnValue(
+      baseInboxState({ addressLoaded: true, address: 'a@b.com', messages: [], isLoading: true })
+    );
+
+    const { container } = renderPage();
+
+    expect(container.textContent).not.toContain('Your inbox is ready');
+    expect(container.querySelectorAll('.skeleton').length).toBeGreaterThan(0);
+  });
+});
+
 describe('InboxPage — address present, empty list (onboarding hint)', () => {
-  it('shows the copyable address and no message rows', () => {
+  let originalClipboardDescriptor;
+
+  beforeEach(() => {
+    originalClipboardDescriptor = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
+  });
+
+  // Fix round 1, F11: restore whatever clipboard descriptor was there
+  // before this suite stubbed it, rather than leaving the stub installed
+  // for every test file that runs after this one in the same worker.
+  afterEach(() => {
+    if (originalClipboardDescriptor) {
+      Object.defineProperty(navigator, 'clipboard', originalClipboardDescriptor);
+    } else {
+      delete navigator.clipboard;
+    }
+  });
+
+  it('shows the copyable address and no message rows, and no quota banners at zero usage', () => {
     const address = 'reader-xy9k@masthead.clauding-lab.com';
     useInboxStore.mockReturnValue(baseInboxState({ addressLoaded: true, address, messages: [] }));
 
@@ -125,18 +173,42 @@ describe('InboxPage — address present, empty list (onboarding hint)', () => {
 
     expect(container.textContent).toContain(address);
     expect(findButtonByText(container, 'Copy')).toBeTruthy();
+    // Fix round 1, F2/F3: pins the absence side of both quota-derived
+    // banners against this already-under-threshold, zero-deferred fixture —
+    // without this, a mutant that always shows either banner still passes
+    // every other test in this file.
+    expect(container.textContent).not.toContain('80%');
+    expect(container.textContent).not.toContain('deferred');
   });
 
-  it('the Copy button writes the address to the clipboard', () => {
+  it('the Copy button writes the address to the clipboard and flips the label to Copied on success', async () => {
     const address = 'reader-xy9k@masthead.clauding-lab.com';
     useInboxStore.mockReturnValue(baseInboxState({ addressLoaded: true, address, messages: [] }));
-    const writeText = vi.fn();
+    const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
 
     const { container } = renderPage();
-    fireClick(findButtonByText(container, 'Copy'));
+    await fireClickAsync(findButtonByText(container, 'Copy'));
 
     expect(writeText).toHaveBeenCalledWith(address);
+    expect(findButtonByText(container, 'Copied')).toBeTruthy();
+  });
+
+  // Fix round 1, F7: a rejected clipboard write (permission denial) must
+  // neither flip the label to a false "Copied" nor escape as an unhandled
+  // rejection.
+  it('a clipboard permission denial does not flip the label to Copied', async () => {
+    const address = 'reader-xy9k@masthead.clauding-lab.com';
+    useInboxStore.mockReturnValue(baseInboxState({ addressLoaded: true, address, messages: [] }));
+    const writeText = vi.fn().mockRejectedValue(new Error('Permission denied'));
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+
+    const { container } = renderPage();
+    await fireClickAsync(findButtonByText(container, 'Copy'));
+
+    expect(writeText).toHaveBeenCalledWith(address);
+    expect(findButtonByText(container, 'Copy')).toBeTruthy();
+    expect(findButtonByText(container, 'Copied')).toBeFalsy();
   });
 });
 
@@ -148,7 +220,10 @@ describe('InboxPage — list state', () => {
       from_email: 'news@overhead.example',
       subject: 'Weekly markets digest',
       excerpt: 'Rates, reserves, and remittances this week.',
-      received_at: new Date().toISOString(),
+      // Fix round 1, F5: a fixed offset (3h1m, not "now") so timeAgo has
+      // real coverage — a minute of slack past the 3h boundary means a few
+      // ms of test-runner delay can never round this down to "2h ago".
+      received_at: new Date(Date.now() - (3 * 60 + 1) * 60 * 1000).toISOString(),
       read_at: null,
       auth_results: 'spf=pass dkim=pass dmarc=pass',
     },
@@ -174,6 +249,26 @@ describe('InboxPage — list state', () => {
     expect(container.textContent).toContain('Weekly markets digest');
     expect(container.textContent).toContain('Special offer inside');
     expect(container.textContent).toContain('Rates, reserves, and remittances this week.');
+  });
+
+  // Fix round 1, F5: timeAgo had zero coverage — deleting it from
+  // InboxMessageRow entirely still passed every existing test.
+  it('shows the relative received date via timeAgo', () => {
+    useInboxStore.mockReturnValue(baseInboxState({ addressLoaded: true, address: 'a@b.com', messages: MESSAGES }));
+
+    const { container } = renderPage();
+
+    expect(container.textContent).toContain('3h ago');
+  });
+
+  // Fix round 1, F6: replacing the PullToRefresh wrapper with a bare
+  // fragment previously passed every test — nothing asserted its presence.
+  it('wraps the list in PullToRefresh so the pull gesture is available', () => {
+    useInboxStore.mockReturnValue(baseInboxState({ addressLoaded: true, address: 'a@b.com', messages: MESSAGES }));
+
+    const { container } = renderPage();
+
+    expect(container.querySelector('[data-testid="pull-to-refresh"]')).toBeTruthy();
   });
 
   it('shows an unread dot only for the message with read_at null', () => {
@@ -228,13 +323,17 @@ describe('InboxPage — window focus refetch', () => {
 });
 
 describe('InboxPage — quota banners', () => {
-  it('shows a near-quota banner at >=80% bytes usage', () => {
+  // Fix round 1, F4: both original fixtures sat at exactly 0.90, so
+  // QUOTA_WARNING_RATIO could silently drift from 0.8 to 0.9 with every
+  // test still green. A boundary case (exactly 80%) plus a just-below case
+  // (79%) together pin the constant from both directions.
+  it('shows a near-quota banner exactly at the 80% bytes boundary', () => {
     useInboxStore.mockReturnValue(
       baseInboxState({
         addressLoaded: true,
         address: 'a@b.com',
         messages: [],
-        bytesUsed: 90 * 1024 * 1024, // MAX_LIVE_BYTES is 100 * 1024 * 1024
+        bytesUsed: 80 * 1024 * 1024, // exactly 80% of MAX_LIVE_BYTES (100 * 1024 * 1024)
         messageCount: 1,
       })
     );
@@ -242,6 +341,22 @@ describe('InboxPage — quota banners', () => {
     const { container } = renderPage();
 
     expect(container.textContent).toContain('80%');
+  });
+
+  it('does not show a near-quota banner just below the 80% bytes boundary', () => {
+    useInboxStore.mockReturnValue(
+      baseInboxState({
+        addressLoaded: true,
+        address: 'a@b.com',
+        messages: [],
+        bytesUsed: 79 * 1024 * 1024, // just under 80% of MAX_LIVE_BYTES
+        messageCount: 1,
+      })
+    );
+
+    const { container } = renderPage();
+
+    expect(container.textContent).not.toContain('80%');
   });
 
   it('shows a near-quota banner at >=80% message-count usage', () => {

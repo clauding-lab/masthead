@@ -4,17 +4,23 @@ import useAuthStore from '../stores/authStore';
 import PullToRefresh from '../components/PullToRefresh';
 import EmptyState from '../components/EmptyState';
 import InboxMessageRow from '../components/InboxMessageRow';
+import SkeletonCard from '../components/SkeletonCard';
 import { formatDate } from '../lib/utils';
 import { MAX_LIVE_BYTES, MAX_LIVE_MESSAGES } from '../../lib/inboxConfig.js';
 
 // Same ratio for both quota dimensions (spec §7.1's "≥80% quota" banner) —
 // a single named constant avoids the value drifting between the two checks.
 const QUOTA_WARNING_RATIO = 0.8;
+const LOADING_SKELETON_COUNT = 5;
 
-function QuotaBanner({ text }) {
+// tone="alert" for a failure the user needs to notice (e.g. a rejected
+// requestAddress); tone="status" (default) for the quota/deferred banners,
+// which are informational, not errors — screen readers announce role="alert"
+// more assertively than role="status" (Fix round 1, F8).
+function QuotaBanner({ text, tone = 'status' }) {
   return (
     <div
-      role="status"
+      role={tone === 'alert' ? 'alert' : 'status'}
       className="mx-4 my-2 px-3 py-2 rounded-lg font-ui text-xs"
       style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
     >
@@ -28,12 +34,16 @@ function CopyableAddress({ address }) {
 
   const handleCopy = () => {
     // navigator.clipboard is undefined in some embedded/older webviews —
-    // guard rather than throw; the address text is still visible to copy
-    // by hand either way.
-    if (navigator.clipboard?.writeText) {
-      navigator.clipboard.writeText(address);
-    }
-    setCopied(true);
+    // bail rather than throw. When it IS present, the write is a promise:
+    // only flip the label on confirmed success, and swallow a permission
+    // denial rather than let it surface as an unhandled rejection (Fix
+    // round 1, F7) — the address text is still visible to copy by hand
+    // either way.
+    if (!navigator.clipboard?.writeText) return;
+    navigator.clipboard
+      .writeText(address)
+      .then(() => setCopied(true))
+      .catch(() => {});
   };
 
   return (
@@ -98,7 +108,7 @@ export default function InboxPage() {
   const { user, signInWithGoogle } = useAuthStore();
   const {
     address, bytesUsed, messageCount, overQuotaSince, deferredCount,
-    messages, error, fetchList, requestAddress,
+    messages, isLoading, error, fetchList, requestAddress,
   } = useInboxStore();
 
   // fetchList on mount + on window focus (fetchList also refreshes
@@ -136,7 +146,7 @@ export default function InboxPage() {
   if (!address) {
     return (
       <>
-        {error && <QuotaBanner text={error} />}
+        {error && <QuotaBanner text={error} tone="alert" />}
         <EmptyState
           title="Get your inbox address"
           message="Subscribe to newsletters with a private address that forwards straight into Masthead."
@@ -149,14 +159,25 @@ export default function InboxPage() {
 
   return (
     <div>
-      {error && <QuotaBanner text={error} />}
+      {error && <QuotaBanner text={error} tone="alert" />}
       <QuotaBanners
         bytesUsed={bytesUsed}
         messageCount={messageCount}
         overQuotaSince={overQuotaSince}
         deferredCount={deferredCount}
       />
-      {messages.length === 0 ? (
+      {messages.length === 0 && isLoading ? (
+        // The cold-start gap: bootstrap/fetchList hasn't resolved yet, so an
+        // empty `messages` array doesn't yet mean "no mail" — it may just
+        // mean "haven't asked the server yet." Without this, a returning
+        // user with 200 messages sees the onboarding hint flash on every
+        // cold start for the length of the fetch (Fix round 1, F1).
+        <div>
+          {Array.from({ length: LOADING_SKELETON_COUNT }).map((_, i) => (
+            <SkeletonCard key={i} />
+          ))}
+        </div>
+      ) : messages.length === 0 ? (
         <OnboardingHint address={address} />
       ) : (
         <PullToRefresh onRefresh={fetchList}>

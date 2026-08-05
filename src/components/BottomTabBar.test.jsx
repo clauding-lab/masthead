@@ -1,18 +1,14 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, beforeEach } from 'vitest';
+import { act } from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import { renderComponent, cleanupRendered } from '../test/domTestUtils';
-
-// Selector-style mock (like settingsStore/premiumStore in FeedLayout.test.jsx)
-// so BottomTabBar's `useInboxStore((s) => s.unreadCount)` reads reactively
-// off whatever this test sets, rather than a stale .getState() snapshot
-// (FeedLayout.jsx line 23's comment — the same landmine, extended to the
-// tab bar's badge).
-let inboxState;
-vi.mock('../stores/inboxStore', () => ({
-  default: (selector) => selector(inboxState),
-}));
-
+// Fix round 1, F12: uses the REAL store (no vi.mock), not a hand-rolled
+// selector stub — proves BottomTabBar's actual `useInboxStore((s) =>
+// s.unreadCount)` wiring reacts to a live Zustand state change within a
+// single mounted instance, not just that different static states produce
+// different renders across separate mounts.
+import useInboxStore from '../stores/inboxStore';
 import BottomTabBar from './BottomTabBar';
 
 function renderBar() {
@@ -23,14 +19,17 @@ function renderBar() {
   );
 }
 
+beforeEach(() => {
+  useInboxStore.setState({ unreadCount: 0 });
+});
+
 afterEach(() => {
   cleanupRendered();
-  vi.restoreAllMocks();
+  useInboxStore.setState({ unreadCount: 0 });
 });
 
 describe('BottomTabBar — Inbox tab', () => {
   it('renders a 6th Inbox tab', () => {
-    inboxState = { unreadCount: 0 };
     const { container } = renderBar();
 
     const links = Array.from(container.querySelectorAll('a'));
@@ -39,16 +38,34 @@ describe('BottomTabBar — Inbox tab', () => {
   });
 
   it('shows no badge dot when unreadCount is 0', () => {
-    inboxState = { unreadCount: 0 };
     const { container } = renderBar();
 
     expect(container.querySelector('[aria-label="Unread messages"]')).toBeFalsy();
   });
 
   it('shows a badge dot when unreadCount > 0', () => {
-    inboxState = { unreadCount: 3 };
+    useInboxStore.setState({ unreadCount: 3 });
+
     const { container } = renderBar();
 
     expect(container.querySelector('[aria-label="Unread messages"]')).toBeTruthy();
+  });
+
+  // Fix round 1, F12: the reactive-subscription proof — one mounted
+  // component, live state transitions, no remount in between.
+  it('reacts live to unreadCount changes on the real store: dot appears at 1, disappears back at 0', () => {
+    const { container } = renderBar();
+
+    expect(container.querySelector('[aria-label="Unread messages"]')).toBeFalsy();
+
+    act(() => {
+      useInboxStore.setState({ unreadCount: 1 });
+    });
+    expect(container.querySelector('[aria-label="Unread messages"]')).toBeTruthy();
+
+    act(() => {
+      useInboxStore.setState({ unreadCount: 0 });
+    });
+    expect(container.querySelector('[aria-label="Unread messages"]')).toBeFalsy();
   });
 });

@@ -353,6 +353,36 @@ describe('remove', () => {
 
     expect(useInboxStore.getState().error).toBeNull();
   });
+
+  // Fix round 2, NEW-1: a message opened straight from a permalink
+  // (fetchList() never ran) has no entry in `state.messages` — the server
+  // tombstone must still fire. The old `if (!removed) return;` skipped
+  // inboxData.removeMessage entirely whenever the id wasn't found locally,
+  // a silent no-op T16's deep-linked reader route would have hit.
+  it('still issues the server tombstone for an id absent from the local list (deep-linked message, fetchList never ran)', async () => {
+    useInboxStore.setState({ messages: [] });
+    inboxData.removeMessage.mockResolvedValue(undefined);
+
+    await useInboxStore.getState().remove('m-permalink');
+
+    expect(inboxData.removeMessage).toHaveBeenCalledWith('m-permalink');
+  });
+
+  // Fix round 2, NEW-3: unreadCount already at 0 (an inconsistent state —
+  // an unread message present locally while the badge reads 0) must not
+  // let a failed remove()'s rollback invent an unread. The old
+  // `wasUnread ? state.unreadCount + 1` rollback was a bare delta with no
+  // memory of whether the optimistic decrement actually happened (it was
+  // already floored at 0 by Math.max), so the +1 manufactured a phantom
+  // unread.
+  it('a failed remove of an unread message does not invent an unread when unreadCount was already 0', async () => {
+    useInboxStore.setState({ messages: [{ id: 'a', read_at: null }], unreadCount: 0 });
+    inboxData.removeMessage.mockRejectedValue({ message: 'down' });
+
+    await useInboxStore.getState().remove('a');
+
+    expect(useInboxStore.getState().unreadCount).toBe(0);
+  });
 });
 
 describe('clearRead', () => {
@@ -419,6 +449,30 @@ describe('clearRead', () => {
     await useInboxStore.getState().clearRead();
 
     expect(useInboxStore.getState().error).toBeNull();
+  });
+
+  // Fix round 2, NEW-2: the local list caps at 100 rows (inboxData.listMessages's
+  // default limit) — a user with read messages beyond that page has ZERO
+  // read rows locally even though the server has real rows to clear. The
+  // old `if (removedMessages.length === 0) return;` skipped
+  // inboxData.clearRead() entirely whenever nothing read was visible
+  // locally, a silent no-op that would tombstone nothing server-side.
+  it('still issues the server bulk tombstone when no read messages are visible locally (all-unread page)', async () => {
+    useInboxStore.setState({ messages: [{ id: 'm1', read_at: null }] });
+    inboxData.clearRead.mockResolvedValue(undefined);
+
+    await useInboxStore.getState().clearRead();
+
+    expect(inboxData.clearRead).toHaveBeenCalled();
+  });
+
+  it('still issues the server bulk tombstone when the local list is empty (clearRead before any fetchList)', async () => {
+    useInboxStore.setState({ messages: [] });
+    inboxData.clearRead.mockResolvedValue(undefined);
+
+    await useInboxStore.getState().clearRead();
+
+    expect(inboxData.clearRead).toHaveBeenCalled();
   });
 });
 

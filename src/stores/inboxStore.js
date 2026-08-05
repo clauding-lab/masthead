@@ -147,27 +147,40 @@ const useInboxStore = create((set) => ({
   // still in flight — Fix round 1, F5), and the unreadCount rollback is a
   // delta (+1 iff this removal had decremented it), not a stale count
   // snapshot.
+  //
+  // The server tombstone ALWAYS fires, regardless of whether `id` is
+  // present in `state.messages` (Fix round 2, NEW-1): a deep-linked
+  // message (opened straight from a permalink, `fetchList()` never ran)
+  // has no local list entry to find, but the row on the server is just as
+  // real and must still be removed — `messages.find` returning nothing is
+  // reason to skip the LOCAL optimistic update and its rollback bookkeeping,
+  // never reason to skip the write itself.
   remove: async (id) => {
     let removed = null;
-    let wasUnread = false;
+    let didDecrement = false;
     set((state) => {
       const target = state.messages.find((m) => m.id === id);
-      if (!target) return {};
+      if (!target) return { error: null };
       removed = target;
-      wasUnread = target.read_at === null;
+      // Fix round 2, NEW-3: only a decrement that actually happened earns
+      // a rollback increment. Gating on `state.unreadCount > 0` here means
+      // an inconsistent state (an unread message locally present while the
+      // badge already reads 0) can't have a failed remove() invent an
+      // unread that was never counted — Math.max's floor below is a NO-OP
+      // in that case, and didDecrement records that fact precisely.
+      didDecrement = target.read_at === null && state.unreadCount > 0;
       return {
         messages: state.messages.filter((m) => m.id !== id),
-        unreadCount: wasUnread ? Math.max(0, state.unreadCount - 1) : state.unreadCount,
+        unreadCount: didDecrement ? state.unreadCount - 1 : state.unreadCount,
         error: null,
       };
     });
-    if (!removed) return;
     try {
       await inboxData.removeMessage(id);
     } catch (err) {
       set((state) => ({
-        messages: state.messages.some((m) => m.id === id) ? state.messages : [...state.messages, removed],
-        unreadCount: wasUnread ? state.unreadCount + 1 : state.unreadCount,
+        messages: removed && !state.messages.some((m) => m.id === id) ? [...state.messages, removed] : state.messages,
+        unreadCount: didDecrement ? state.unreadCount + 1 : state.unreadCount,
         error: err?.message || 'Could not remove message',
       }));
     }
@@ -178,16 +191,24 @@ const useInboxStore = create((set) => ({
   // re-inserts only those still missing — never a full-array snapshot,
   // which would clobber a message added or removed by a different action
   // while this bulk write was in flight.
+  //
+  // The server bulk tombstone ALWAYS fires (Fix round 2, NEW-2): the local
+  // list caps at 100 rows (`inboxData.listMessages`'s default `limit`), so
+  // a user with read messages beyond that page has ZERO read rows in
+  // `state.messages` even though the server has real rows to clear — an
+  // empty local `removedMessages` is reason to skip the local optimistic
+  // update (nothing to remove from a list that doesn't show it), never
+  // reason to skip the write.
   clearRead: async () => {
     let removedMessages = [];
     set((state) => {
       removedMessages = state.messages.filter((m) => m.read_at !== null);
+      if (removedMessages.length === 0) return { error: null };
       return {
         messages: state.messages.filter((m) => m.read_at === null),
         error: null,
       };
     });
-    if (removedMessages.length === 0) return;
     try {
       await inboxData.clearRead();
     } catch (err) {

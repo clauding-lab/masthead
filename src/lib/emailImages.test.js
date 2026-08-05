@@ -14,7 +14,9 @@ import { blockRemoteImages } from './emailImages.js';
 function remoteRefs(html) {
   const doc = new DOMParser().parseFromString(html, 'text/html');
   const refs = [];
-  doc.querySelectorAll('img, source, video, track, table, td, th, tr').forEach((el) => {
+  // N1 (T16 re-review): 'audio' added alongside 'video' — video[src] and
+  // audio[src] are both live-fetch vectors blockRemoteImages now covers.
+  doc.querySelectorAll('img, source, video, audio, track, table, td, th, tr').forEach((el) => {
     ['src', 'srcset', 'poster', 'background'].forEach((attr) => {
       const value = el.getAttribute(attr);
       if (value && /(^|[/:])t\.test/i.test(value)) refs.push(value);
@@ -79,6 +81,33 @@ describe('blockRemoteImages — F1: protocol-relative URLs blocked in every vect
       '<table><tr background="//t.test/row.jpg"><td background="//t.test/cell.jpg">x</td></tr></table>'
     );
     expect(remoteRefs(html)).toHaveLength(0);
+  });
+});
+
+describe('blockRemoteImages — N1 (T16 re-review): video[src] and audio[src] are live-fetch vectors too', () => {
+  // Real network evidence per the finding: Chromium fetches video[src] and
+  // audio[src] on preload=metadata — poster/track alone don't cover these.
+  it('neutralizes video[src], stashing the original under data-masthead-src', () => {
+    const { html, blockedCount } = blockRemoteImages('<video src="https://t.test/clip.mp4"></video>');
+    expect(remoteRefs(html)).toHaveLength(0);
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    expect(doc.querySelector('video').getAttribute('data-masthead-src')).toBe('https://t.test/clip.mp4');
+    expect(blockedCount).toBe(1);
+  });
+
+  it('neutralizes audio[src], stashing the original under data-masthead-src', () => {
+    const { html, blockedCount } = blockRemoteImages('<audio src="https://t.test/track.mp3"></audio>');
+    expect(remoteRefs(html)).toHaveLength(0);
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    expect(doc.querySelector('audio').getAttribute('data-masthead-src')).toBe('https://t.test/track.mp3');
+    expect(blockedCount).toBe(1);
+  });
+
+  it('counts one blocked video even when both poster and src were neutralized on the same <video>', () => {
+    const { blockedCount } = blockRemoteImages(
+      '<video poster="https://t.test/poster.jpg" src="https://t.test/clip.mp4"></video>'
+    );
+    expect(blockedCount).toBe(1);
   });
 });
 

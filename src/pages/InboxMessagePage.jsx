@@ -8,6 +8,10 @@ import Icon from '../components/ui/Icon';
 import { formatDate } from '../lib/utils';
 import { sanitizeEmailHtml } from '../lib/sanitize';
 import { blockRemoteImages } from '../lib/emailImages';
+import { isFavorited } from '../lib/db';
+import { saveInboxMessage, deleteSaved } from '../lib/library';
+import { articleId } from '../../lib/articleId.js';
+import { inboxPermalink } from '../lib/inboxPermalink';
 import '../styles/email-content.css';
 
 // `unsubscribe_url` has no scheme restriction at the DB layer (unlike
@@ -61,6 +65,13 @@ export default function InboxMessagePage() {
   // the user their mail is permanently gone.
   const [retryableError, setRetryableError] = useState(null);
   const [retryCount, setRetryCount] = useState(0);
+  // Heart button (Task 17, moved from T16 — sequencing fix: saveInboxMessage
+  // is born in this task). `saved` mirrors FavoriteToggle.jsx's own
+  // favorited/saving pair; the id under which this message would be saved
+  // is derived, not stored — the minted permalink (inboxPermalink) run
+  // through articleId, same derivation saveInboxMessage itself uses.
+  const [saved, setSaved] = useState(false);
+  const [savingHeart, setSavingHeart] = useState(false);
 
   // openMessage marks the message read (server + local unreadCount
   // decrement) as a side effect of fetching it — see inboxStore.js. The
@@ -107,6 +118,45 @@ export default function InboxMessagePage() {
 
   const handleRetry = () => setRetryCount((c) => c + 1);
 
+  // Checks saved state once the message id is known — same derivation
+  // saveInboxMessage uses (permalink -> articleId), so this always agrees
+  // with what actually got written to IndexedDB.
+  useEffect(() => {
+    let cancelled = false;
+    if (!message?.id) {
+      setSaved(false);
+      return;
+    }
+    isFavorited(articleId(inboxPermalink(message.id))).then((result) => {
+      if (!cancelled) setSaved(result);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [message?.id]);
+
+  // Un-heart goes through the same removeSaved/tombstone path as every
+  // other un-heart in the app (deleteSaved, src/lib/library.js) — the
+  // minted permalink is an https:// URL, so it passes the url CHECK
+  // constraint the DB enforces (Task 17).
+  const handleHeart = async () => {
+    if (!message || savingHeart) return;
+    setSavingHeart(true);
+    try {
+      if (saved) {
+        const url = inboxPermalink(message.id);
+        await deleteSaved({ id: articleId(url), url });
+        setSaved(false);
+      } else {
+        await saveInboxMessage(message);
+        setSaved(true);
+      }
+    } catch (err) {
+      console.error('Failed to toggle saved state:', err);
+    }
+    setSavingHeart(false);
+  };
+
   // Sanitize once per fetched message, then compute the blocked variant
   // from that ground truth — "loaded" never round-trips through an
   // unblock step, it just renders the untouched `sanitized` string, which
@@ -148,9 +198,33 @@ export default function InboxMessagePage() {
             <Icon name="back" />
           </Button>
           {!isLoading && message && !message.deleted_at && (
-            <Button variant="icon" onClick={handleDelete} aria-label="Delete message">
-              <Icon name="close" />
-            </Button>
+            <div className="flex items-center gap-0.5 flex-shrink-0">
+              <button
+                type="button"
+                onClick={handleHeart}
+                disabled={savingHeart}
+                className="p-2 transition-transform active:scale-90"
+                style={{ color: saved ? 'var(--accent)' : 'var(--text-secondary)' }}
+                aria-label={saved ? 'Remove from favorites' : 'Save to favorites'}
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill={saved ? 'currentColor' : 'none'}
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
+                </svg>
+              </button>
+              <Button variant="icon" onClick={handleDelete} aria-label="Delete message">
+                <Icon name="close" />
+              </Button>
+            </div>
           )}
         </div>
       </header>

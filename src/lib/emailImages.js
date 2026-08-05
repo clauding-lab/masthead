@@ -136,8 +136,17 @@ export function blockRemoteImages(html) {
     if (blockedSrcset || blockedSrc) blockedCount += 1;
   });
 
+  // N1 (T16 re-review): video[src] and audio[src] are live-fetch vectors
+  // too — Chromium fetches both on preload=metadata, same class of leak as
+  // poster/track above. Same blockAttr pattern.
   doc.querySelectorAll('video').forEach((video) => {
-    if (blockAttr(video, 'poster')) blockedCount += 1;
+    const blockedPoster = blockAttr(video, 'poster');
+    const blockedSrc = blockAttr(video, 'src');
+    if (blockedPoster || blockedSrc) blockedCount += 1;
+  });
+
+  doc.querySelectorAll('audio').forEach((audio) => {
+    if (blockAttr(audio, 'src')) blockedCount += 1;
   });
 
   doc.querySelectorAll('track').forEach((track) => {

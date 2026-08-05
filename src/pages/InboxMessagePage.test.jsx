@@ -32,7 +32,24 @@ vi.mock('../stores/settingsStore', () => ({
   default: (selector) => selector(settingsState),
 }));
 
+// Heart button (Task 17): mocked at the same I/O-boundary granularity as
+// lib/inboxData above — isFavorited touches IndexedDB, saveInboxMessage /
+// deleteSaved touch IndexedDB + Supabase. This page test asserts the WIRING
+// (which function fires, with what argument, and how saved state renders),
+// not saveInboxMessage's/deleteSaved's own business rules — those are
+// pinned at the library.test.js layer (landmine-18 seam guards, blocking,
+// round-trip).
+vi.mock('../lib/db', () => ({
+  isFavorited: vi.fn(),
+}));
+vi.mock('../lib/library', () => ({
+  saveInboxMessage: vi.fn(),
+  deleteSaved: vi.fn(),
+}));
+
 import * as inboxData from '../lib/inboxData';
+import { isFavorited } from '../lib/db';
+import { saveInboxMessage, deleteSaved } from '../lib/library';
 import useInboxStore from '../stores/inboxStore';
 import InboxMessagePage from './InboxMessagePage';
 
@@ -96,6 +113,7 @@ beforeEach(() => {
   });
   settingsState = { alwaysLoadRemoteImages: false };
   inboxData.markRead.mockResolvedValue(undefined);
+  isFavorited.mockResolvedValue(false);
 });
 
 afterEach(() => {
@@ -453,5 +471,66 @@ describe('InboxMessagePage — loading state', () => {
     const { container } = renderMessagePage();
 
     expect(container.querySelectorAll('.skeleton').length).toBeGreaterThan(0);
+  });
+});
+
+describe('InboxMessagePage — heart / save to library (T17, moved from T16)', () => {
+  it('renders a Heart button in the "not saved" state by default', async () => {
+    inboxData.getMessage.mockResolvedValueOnce({ ...BASE_MESSAGE, html_body: '<p>x</p>' });
+    isFavorited.mockResolvedValueOnce(false);
+
+    const { container } = await renderAndFlush();
+
+    expect(container.querySelector('[aria-label="Save to favorites"]')).toBeTruthy();
+    expect(container.querySelector('[aria-label="Remove from favorites"]')).toBeFalsy();
+  });
+
+  it('a previously saved message reflects saved state on load (isFavorited resolves true)', async () => {
+    inboxData.getMessage.mockResolvedValueOnce({ ...BASE_MESSAGE, html_body: '<p>x</p>' });
+    isFavorited.mockResolvedValueOnce(true);
+
+    const { container } = await renderAndFlush();
+
+    expect(container.querySelector('[aria-label="Remove from favorites"]')).toBeTruthy();
+    expect(container.querySelector('[aria-label="Save to favorites"]')).toBeFalsy();
+  });
+
+  it('tapping the heart fires saveInboxMessage exactly once with the loaded message, then flips to saved state', async () => {
+    inboxData.getMessage.mockResolvedValueOnce({ ...BASE_MESSAGE, html_body: '<p>x</p>' });
+    isFavorited.mockResolvedValueOnce(false);
+    saveInboxMessage.mockResolvedValueOnce({ id: 'inboxsavedid1234', url: 'https://x.test/inbox/message/' + MESSAGE_ID });
+
+    const { container } = await renderAndFlush();
+    await fireClickAsync(container.querySelector('[aria-label="Save to favorites"]'));
+
+    expect(saveInboxMessage).toHaveBeenCalledTimes(1);
+    expect(saveInboxMessage).toHaveBeenCalledWith(expect.objectContaining({ id: MESSAGE_ID, subject: BASE_MESSAGE.subject }));
+    expect(deleteSaved).not.toHaveBeenCalled();
+    expect(container.querySelector('[aria-label="Remove from favorites"]')).toBeTruthy();
+  });
+
+  it('un-hearting a saved message fires deleteSaved (the removeSaved/tombstone path) and flips back to unsaved', async () => {
+    inboxData.getMessage.mockResolvedValueOnce({ ...BASE_MESSAGE, html_body: '<p>x</p>' });
+    isFavorited.mockResolvedValueOnce(true);
+    deleteSaved.mockResolvedValueOnce(undefined);
+
+    const { container } = await renderAndFlush();
+    await fireClickAsync(container.querySelector('[aria-label="Remove from favorites"]'));
+
+    expect(deleteSaved).toHaveBeenCalledTimes(1);
+    expect(saveInboxMessage).not.toHaveBeenCalled();
+    expect(container.querySelector('[aria-label="Save to favorites"]')).toBeTruthy();
+  });
+
+  it('no Heart button renders once the message is removed (tombstoned) — same gate as Delete', async () => {
+    inboxData.getMessage.mockResolvedValueOnce({
+      ...BASE_MESSAGE,
+      deleted_at: '2026-08-01T10:00:00.000Z',
+    });
+
+    const { container } = await renderAndFlush();
+
+    expect(container.querySelector('[aria-label="Save to favorites"]')).toBeFalsy();
+    expect(container.querySelector('[aria-label="Remove from favorites"]')).toBeFalsy();
   });
 });

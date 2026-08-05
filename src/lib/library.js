@@ -5,6 +5,8 @@ import {
   getPendingUrls, removePendingUrl,
 } from './db';
 import { pushSaved, removeSaved } from './sync';
+import { isInboxPermalink, inboxPermalink } from './inboxPermalink';
+import { blockRemoteImages } from './emailImages';
 import useAuthStore from '../stores/authStore';
 
 const MAX_CONTENT_CHARS = 1_500_000;
@@ -16,6 +18,17 @@ export class LibrarySaveError extends Error {
     super(message);
     this.name = 'LibrarySaveError';
   }
+}
+
+// Premium records must never reach the extractor (landmine 18); inbox
+// records must never reach it either — same class of bug, same fix shape.
+// `savedVia` does NOT survive a cloud round-trip (`localFromSavedRow` in
+// sync.js hardcodes 'sync' on every pulled row), so the durable half of
+// this predicate is the URL shape: `isInboxPermalink` matches the minted
+// `/inbox/message/<uuid>` path regardless of which device or sync pass
+// wrote the record. (Task 17, landmine 18 extension.)
+export function isInboxRecord(rec) {
+  return rec?.savedVia === 'inbox' || isInboxPermalink(rec?.url || '');
 }
 
 export function firstHttpUrl(text) {
@@ -41,6 +54,11 @@ export function capContent(content) {
 export function resolveReaderSource(saved, url) {
   if (saved && (saved.content || saved.textContent)) return 'stored';
   if (saved && saved.savedVia === 'premium') return saved.sourceId ? 'premium' : 'shell';
+  // A body-less inbox record must never resolve to 'live' — the URL is the
+  // app's own minted permalink, and 'live' feeds the extractor, which would
+  // fetch the SPA shell, not the newsletter body (Task 17, landmine 18
+  // extension). Terminal, same as a sourceId-less premium shell above.
+  if (saved && isInboxRecord(saved)) return 'shell';
   if (url) return 'live';
   if (saved) return 'shell';
   return 'none';
@@ -145,6 +163,14 @@ export async function saveArticle({ url, id, sourceMeta = {}, savedVia = 'url', 
     body = await fetchPremiumBody(sourceMeta.sourceId, finalId).catch(() => null);
   } else if (preloadedArticle && (preloadedArticle.content || preloadedArticle.textContent)) {
     body = preloadedArticle; // heart-from-reader: the app already holds the body
+  } else if (isInboxRecord({ savedVia, url: cleanUrl })) {
+    // CRITICAL: this guard must sit BEFORE the URL-shaped branch below, not
+    // inside it. A body-less inbox message's url IS an https:// permalink,
+    // so without this early return it would fall straight into
+    // extractQueued against the permalink — fetching the app's own SPA
+    // shell, not the newsletter (Task 17, landmine 18 extension). Filed as
+    // a bodyFailed shell like any other refused channel.
+    body = null;
   } else if (/^https?:\/\//i.test(cleanUrl)) {
     body = await extractQueued(cleanUrl, sourceMeta.sourceId, d);
   }
@@ -155,6 +181,38 @@ export async function saveArticle({ url, id, sourceMeta = {}, savedVia = 'url', 
 
   await pushIfSignedIn(record, d);
   return record;
+}
+
+// Heart-to-library for a newsletter (Task 17). Mints the permalink
+// (`inboxPermalink`) that stands in for a normal article's URL, then routes
+// the body through saveArticle's ordinary preloadedArticle channel — the
+// capContent clamp and articleId(url) id derivation come for free from
+// there, no re-implementation needed.
+//
+// Controller ruling (T16 re-review carry-forward — read-receipt via the
+// Saved surface): the reader renders a saved record's content with NO
+// remote-image blocking (ReaderPage's sanitizeArticleHtml path, unlike
+// InboxMessagePage's sanitizeEmailHtml + blockRemoteImages pairing), so a
+// hearted newsletter would otherwise fire its tracking pixels every time it
+// is reopened from Saved. Fix: store the BLOCKED variant — run html_body
+// (already sanitized server-side at ingest, lib/sanitizeEmail.js) through
+// blockRemoteImages before it ever reaches saveArticle. The library copy is
+// privacy-safe forever; "View original" (web_url) stays the one path to the
+// live, unblocked version — web_url itself is never stored on the record.
+export async function saveInboxMessage(message, deps = {}) {
+  const url = inboxPermalink(message.id);
+  const blockedContent = message.html_body ? blockRemoteImages(message.html_body).html : null;
+  return saveArticle({
+    url,
+    savedVia: 'inbox',
+    preloadedArticle: {
+      title: message.subject || '(no subject)',
+      byline: message.from_name || message.from_email || null,
+      content: blockedContent,
+      textContent: message.text_body || null,
+      excerpt: message.excerpt || null,
+    },
+  }, deps);
 }
 
 export async function retrySave(id, deps = {}) {
@@ -172,6 +230,11 @@ export async function retrySave(id, deps = {}) {
       const { fetchPremiumBody } = await import('./premiumApi');
       body = await fetchPremiumBody(saved.sourceId, id).catch(() => null);
     }
+  } else if (isInboxRecord(saved)) {
+    // Never re-extract an inbox permalink — same ban as saveArticle above,
+    // and it must stay in force after a cloud sync round-trip, where
+    // savedVia has already become 'sync' (Task 17, landmine 18 extension).
+    return saved;
   } else if (/^https?:\/\//i.test(saved.url || '')) {
     body = await extractQueued(saved.url, saved.sourceId, d);
   } else {
@@ -196,6 +259,11 @@ export async function attachBodyToSaved(id, article, deps = {}) {
   // extraction attaching itself here, which would silently persist the
   // publisher's paywall teaser as if it were the paid body (2E fix wave 1).
   if (saved.savedVia === 'premium') return saved;
+  // Same ban: a live-fetched article must never be written into an inbox
+  // record's body — if a fetch against the permalink ever ran, it hit the
+  // SPA shell, not the newsletter (Task 17, landmine 18 extension); this
+  // must also hold after a cloud sync round-trip (savedVia now 'sync').
+  if (isInboxRecord(saved)) return saved;
   const record = await applyBody(id, article, saved.title);
   await pushIfSignedIn(record, d);
   return record;

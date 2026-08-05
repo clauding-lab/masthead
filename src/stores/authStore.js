@@ -32,6 +32,23 @@ async function bootstrapPremiumFeeds() {
   }
 }
 
+// Same pattern, same landmine (20), extended to the Inbox surface added in
+// Phase 3b: useInboxStore's address + unread count must be populated on
+// every session-establishing path, not just when the user happens to visit
+// the Inbox tab — otherwise BottomTabBar's unread badge and the tab's own
+// "get your address" bootstrap card lag behind reality on a normal boot.
+// Fire-and-forget alongside bootstrapPremiumFeeds; inboxStore.bootstrap()
+// already swallows its own failures (never breaks app boot on its own), and
+// this try/catch is belt-and-braces around the dynamic import itself.
+async function bootstrapInboxOnAuth() {
+  try {
+    const useInboxStore = (await import('./inboxStore')).default;
+    await useInboxStore.getState().bootstrap();
+  } catch (err) {
+    console.error('[auth] inbox bootstrap failed:', err);
+  }
+}
+
 const useAuthStore = create((set, get) => ({
   user: null,
   session: null,
@@ -54,7 +71,10 @@ const useAuthStore = create((set, get) => ({
       });
       // Restored session (page reload with an existing sign-in): fire and
       // forget, never block boot on the premium API.
-      if (session?.user) bootstrapPremiumFeeds();
+      if (session?.user) {
+        bootstrapPremiumFeeds();
+        bootstrapInboxOnAuth();
+      }
     } catch {
       set({ isLoading: false, isInitialized: true });
     }
@@ -66,6 +86,7 @@ const useAuthStore = create((set, get) => ({
       if (session?.user && !prevUser) {
         syncOnSignIn(session.user.id).catch(console.error);
         bootstrapPremiumFeeds();
+        bootstrapInboxOnAuth();
         const pending = localStorage.getItem('masthead-pendingSourceSync');
         if (pending) {
           try {
@@ -103,6 +124,8 @@ const useAuthStore = create((set, get) => ({
 
       const usePremiumStore = (await import('./premiumStore')).default;
       usePremiumStore.getState().reset();
+      const useInboxStore = (await import('./inboxStore')).default;
+      useInboxStore.getState().reset();
       const { useNewsFeedStore, useBlogsFeedStore } = await import('./feedStore');
       for (const store of [useNewsFeedStore, useBlogsFeedStore]) {
         store.setState({ headlines: [], fetchedAt: null, error: null, premiumIssues: [], premiumAuthFailed: false });

@@ -364,16 +364,53 @@ describe('InboxMessagePage — tombstone / removed state', () => {
 
 describe('InboxMessagePage — F3 (Opus fix round 1): transient errors are retryable, not "removed"', () => {
   it('a transient failure (no error code — e.g. a network blip) shows a retryable error state, NOT "This message was removed"', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
     inboxData.getMessage.mockRejectedValueOnce({ message: 'Failed to fetch' });
 
     const { container } = await renderAndFlush();
 
     expect(container.textContent).not.toContain('This message was removed');
-    expect(container.textContent).toContain('Failed to fetch');
+    expect(container.textContent).toContain("Couldn't load this message");
     expect(findButtonByText(container, 'Retry')).toBeTruthy();
+
+    consoleError.mockRestore();
+  });
+
+  // N2 (T16 re-review): the retryable error state used to render the raw
+  // internal error string verbatim — "TypeError: Failed to fetch", "JWT
+  // expired" — which leaks implementation/auth internals to the user. The
+  // DOM must always show the fixed plain-English line; the raw detail goes
+  // to console.error only.
+  it('never leaks the raw internal error string into the DOM — a fixed plain-English line renders instead, and the raw detail goes to console.error', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    inboxData.getMessage.mockRejectedValueOnce({ message: 'Failed to fetch' });
+
+    const { container } = await renderAndFlush();
+
+    expect(container.textContent).not.toContain('Failed to fetch');
+    expect(container.textContent).toContain("Couldn't load this message. Check your connection and try again.");
+    expect(consoleError).toHaveBeenCalledWith(expect.stringContaining('[inbox]'), 'Failed to fetch');
+
+    consoleError.mockRestore();
+  });
+
+  // N2: a distinct fixture pinning the exact leak this fix closes — an
+  // auth-internal string ("JWT expired") must never reach the DOM either.
+  it('a JWT-expired failure never leaks the raw auth-internal string into the DOM', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    inboxData.getMessage.mockRejectedValueOnce({ message: 'JWT expired' });
+
+    const { container } = await renderAndFlush();
+
+    expect(container.textContent).not.toContain('JWT expired');
+    expect(container.textContent).toContain("Couldn't load this message");
+    expect(consoleError).toHaveBeenCalledWith(expect.stringContaining('[inbox]'), 'JWT expired');
+
+    consoleError.mockRestore();
   });
 
   it('clicking Retry re-fires openMessage for the same id', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
     inboxData.getMessage
       .mockRejectedValueOnce({ message: 'Failed to fetch' })
       .mockResolvedValueOnce({ ...BASE_MESSAGE, html_body: '<p>recovered</p>' });
@@ -387,6 +424,9 @@ describe('InboxMessagePage — F3 (Opus fix round 1): transient errors are retry
     expect(inboxData.getMessage).toHaveBeenNthCalledWith(2, MESSAGE_ID);
     expect(container.textContent).toContain('recovered');
     expect(container.textContent).not.toContain('Failed to fetch');
+    expect(container.textContent).not.toContain("Couldn't load this message");
+
+    consoleError.mockRestore();
   });
 
   it('a genuine PGRST116 miss still shows "removed", with no Retry button', async () => {

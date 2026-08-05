@@ -34,7 +34,7 @@ function applyAddressResult(set, result) {
   });
 }
 
-const useInboxStore = create((set) => ({
+const useInboxStore = create((set, get) => ({
   address: null,
   bytesUsed: 0,
   messageCount: 0,
@@ -236,7 +236,15 @@ const useInboxStore = create((set) => ({
         const toRestore = removedMessages.filter((m) => !present.has(m.id));
         return { messages: [...state.messages, ...toRestore], error: err?.message || 'Could not clear read messages' };
       });
+      return;
     }
+    // T18 quota-freshness fix (F9, T15 review): bytesUsed/messageCount/
+    // overQuotaSince/deferredCount are only written by bootstrap + the
+    // address actions, so they go stale the instant a bulk tombstone lands.
+    // Re-run the address GET so the Settings meter reflects it immediately.
+    // refreshQuota already swallows its own errors — a failed refresh must
+    // never clobber this already-successful clearRead.
+    await get().refreshQuota();
   },
 
   requestAddress: async () => {
@@ -263,6 +271,24 @@ const useInboxStore = create((set) => ({
       applyAddressResult(set, await authed('DELETE', API));
     } catch (err) {
       set({ error: err?.message || 'Could not remove your inbox address' });
+    }
+  },
+
+  // T18 quota-freshness fix (F9, T15 review, controller-routed): a
+  // lightweight re-run of the same address GET (the canonical 5-key
+  // applyAddressResult shape) so bytesUsed/messageCount/overQuotaSince/
+  // deferredCount don't go stale in-session. Two call sites: clearRead's
+  // success path above, and SettingsPage's Email Inbox section on mount
+  // (SettingsPage.jsx). Swallow-never-throw, same posture as bootstrap — a
+  // refresh failure must never surface as a store error or block whatever
+  // triggered it.
+  refreshQuota: async () => {
+    try {
+      const token = await getAccessToken();
+      if (!token) return;
+      applyAddressResult(set, await authed('GET', API));
+    } catch (err) {
+      console.error('[inbox] quota refresh failed:', err?.message || err);
     }
   },
 

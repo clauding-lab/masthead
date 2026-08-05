@@ -510,6 +510,76 @@ describe('clearRead', () => {
 
     expect(inboxData.clearRead).toHaveBeenCalled();
   });
+
+  // T18 quota-freshness fix (F9, T15 review): bytesUsed/messageCount are
+  // only written by bootstrap + the address actions, so a bulk tombstone
+  // leaves the Settings meter stale until the address GET re-runs.
+  it('a successful clearRead re-runs the address GET to refresh the quota meter', async () => {
+    useInboxStore.setState({ messages: [{ id: 'm1', read_at: '2026-08-01T00:00:00.000Z' }] });
+    inboxData.clearRead.mockResolvedValue(undefined);
+    const refreshed = { ...ADDRESS_RESULT, bytesUsed: 42 };
+    authed.mockResolvedValue(refreshed);
+
+    await useInboxStore.getState().clearRead();
+
+    expect(authed).toHaveBeenCalledWith('GET', API);
+    expect(useInboxStore.getState().bytesUsed).toBe(42);
+  });
+
+  it('a failed clearRead does NOT re-run the address GET', async () => {
+    useInboxStore.setState({ messages: [{ id: 'm1', read_at: '2026-08-01T00:00:00.000Z' }] });
+    inboxData.clearRead.mockRejectedValue({ message: 'nope' });
+
+    await useInboxStore.getState().clearRead();
+
+    expect(authed).not.toHaveBeenCalled();
+  });
+
+  // Swallow-never-throw: a refresh failure must never clobber an already-
+  // successful clearRead (the messages stay cleared, no error surfaces).
+  it('a quota-refresh failure after a successful clearRead does not clobber the clearRead result', async () => {
+    useInboxStore.setState({ messages: [{ id: 'm1', read_at: '2026-08-01T00:00:00.000Z' }] });
+    inboxData.clearRead.mockResolvedValue(undefined);
+    authed.mockRejectedValue(new Error('network blip'));
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    await expect(useInboxStore.getState().clearRead()).resolves.toBeUndefined();
+
+    expect(useInboxStore.getState().messages).toEqual([]);
+    expect(useInboxStore.getState().error).toBeNull();
+    consoleError.mockRestore();
+  });
+});
+
+describe('refreshQuota', () => {
+  it('GETs via authed and applies the canonical 5-key address result', async () => {
+    authed.mockResolvedValue(ADDRESS_RESULT);
+
+    await useInboxStore.getState().refreshQuota();
+
+    expect(authed).toHaveBeenCalledWith('GET', API);
+    expect(useInboxStore.getState().bytesUsed).toBe(ADDRESS_RESULT.bytesUsed);
+    expect(useInboxStore.getState().messageCount).toBe(ADDRESS_RESULT.messageCount);
+    expect(useInboxStore.getState().addressLoaded).toBe(true);
+  });
+
+  it('does nothing when there is no access token (signed out) — no authed call, no throw', async () => {
+    getAccessToken.mockResolvedValue(null);
+
+    await expect(useInboxStore.getState().refreshQuota()).resolves.toBeUndefined();
+
+    expect(authed).not.toHaveBeenCalled();
+  });
+
+  it('swallows a rejected GET and never throws, logging instead', async () => {
+    authed.mockRejectedValue(new Error('boom'));
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    await expect(useInboxStore.getState().refreshQuota()).resolves.toBeUndefined();
+
+    expect(consoleError).toHaveBeenCalled();
+    consoleError.mockRestore();
+  });
 });
 
 describe('requestAddress / regenerateAddress / removeAddress', () => {

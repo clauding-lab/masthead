@@ -107,7 +107,13 @@ export default function InboxMessagePage() {
         const genuineMiss = errorCode === 'PGRST116' || errorCode === 'not_found';
         if (!genuineMiss) {
           setMessage(null);
-          setRetryableError(storeError || 'Could not load this message.');
+          // N2 (T16 re-review): the raw error can be an internal string
+          // ("TypeError: Failed to fetch", "JWT expired") that leaks
+          // implementation/auth internals to the user. Always show a fixed
+          // plain-English line in the DOM; the raw detail goes to the
+          // console only, for debugging.
+          console.error('[inbox] failed to load message:', storeError || errorCode || 'unknown error');
+          setRetryableError("Couldn't load this message. Check your connection and try again.");
           setIsLoading(false);
           return;
         }

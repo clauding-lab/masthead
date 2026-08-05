@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import Tag from './ui/Tag';
 import Icon from './ui/Icon';
 import { timeAgo } from '../lib/utils';
+import { isInboxRecord } from '../lib/library';
 
 export default function SavedArticleCard({ article, onRemove, onRetry }) {
   return (
@@ -37,7 +38,11 @@ export default function SavedArticleCard({ article, onRemove, onRetry }) {
             <span className="text-[10px] font-mono px-1.5 py-0.5 rounded" style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--text-tertiary)' }}>
               Fetching…
             </span>
-          ) : article.bodyFailed ? (
+          ) : article.bodyFailed && !isInboxRecord(article) ? (
+            // A body-less inbox record is a permanent shell — retrySave
+            // refuses to extract it (extractor-ban seam guard, library.js),
+            // so a retry button here would be a forever-no-op (fix round 1,
+            // F2).
             <button
               type="button"
               onClick={(e) => { e.preventDefault(); onRetry?.(article.id); }}

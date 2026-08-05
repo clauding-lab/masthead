@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import useInboxStore from '../stores/inboxStore';
 import useSettingsStore from '../stores/settingsStore';
@@ -72,6 +72,14 @@ export default function InboxMessagePage() {
   // through articleId, same derivation saveInboxMessage itself uses.
   const [saved, setSaved] = useState(false);
   const [savingHeart, setSavingHeart] = useState(false);
+  // Fix round 1, F4: a guard read from React state alone is racy for two
+  // clicks fired in the SAME synchronous batch — both can run before
+  // setSavingHeart(true)'s update commits, so both read the same stale
+  // `savingHeart === false` from their shared closure. A ref is mutated
+  // synchronously and immediately visible to the second invocation
+  // regardless of whether a render has committed; `savingHeart` (state)
+  // stays purely for the disabled-button visual, not the actual guard.
+  const savingHeartRef = useRef(false);
 
   // openMessage marks the message read (server + local unreadCount
   // decrement) as a side effect of fetching it — see inboxStore.js. The
@@ -140,7 +148,8 @@ export default function InboxMessagePage() {
   // minted permalink is an https:// URL, so it passes the url CHECK
   // constraint the DB enforces (Task 17).
   const handleHeart = async () => {
-    if (!message || savingHeart) return;
+    if (!message || savingHeartRef.current) return;
+    savingHeartRef.current = true;
     setSavingHeart(true);
     try {
       if (saved) {
@@ -154,6 +163,7 @@ export default function InboxMessagePage() {
     } catch (err) {
       console.error('Failed to toggle saved state:', err);
     }
+    savingHeartRef.current = false;
     setSavingHeart(false);
   };
 

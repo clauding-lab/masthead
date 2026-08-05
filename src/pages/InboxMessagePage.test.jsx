@@ -504,8 +504,44 @@ describe('InboxMessagePage — heart / save to library (T17, moved from T16)', (
     await fireClickAsync(container.querySelector('[aria-label="Save to favorites"]'));
 
     expect(saveInboxMessage).toHaveBeenCalledTimes(1);
-    expect(saveInboxMessage).toHaveBeenCalledWith(expect.objectContaining({ id: MESSAGE_ID, subject: BASE_MESSAGE.subject }));
+    // F5 (security review fix round 1): pins html_body specifically, not
+    // just id/subject — a refactor that accidentally passed a list-row
+    // shape (which never carries html_body) would fail this, not just a
+    // shape-agnostic "was called" check.
+    expect(saveInboxMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ id: MESSAGE_ID, subject: BASE_MESSAGE.subject, html_body: '<p>x</p>' })
+    );
     expect(deleteSaved).not.toHaveBeenCalled();
+    expect(container.querySelector('[aria-label="Remove from favorites"]')).toBeTruthy();
+  });
+
+  // F4 (security review fix round 1, LOW): two clicks fired in the SAME
+  // synchronous batch (both before React commits the saving-state update)
+  // must still only call saveInboxMessage once. A guard keyed purely on
+  // React state (read from a closure) can't see the first click's update
+  // until after a render commits — a ref-backed guard, mutated
+  // synchronously, is what actually closes this race.
+  it('two rapid clicks fired before the save resolves call saveInboxMessage exactly once', async () => {
+    inboxData.getMessage.mockResolvedValueOnce({ ...BASE_MESSAGE, html_body: '<p>x</p>' });
+    isFavorited.mockResolvedValueOnce(false);
+    let resolveSave;
+    saveInboxMessage.mockImplementationOnce(
+      () => new Promise((resolve) => { resolveSave = resolve; })
+    );
+
+    const { container } = await renderAndFlush();
+    const heart = container.querySelector('[aria-label="Save to favorites"]');
+
+    await act(async () => {
+      heart.click();
+      heart.click();
+    });
+
+    expect(saveInboxMessage).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      resolveSave({ id: 'inboxsavedid5678', url: 'https://x.test/inbox/message/' + MESSAGE_ID });
+    });
     expect(container.querySelector('[aria-label="Remove from favorites"]')).toBeTruthy();
   });
 

@@ -12,10 +12,34 @@ import { useEffect, useRef } from 'react';
 export default function ConfirmSheet({ open, title, message, confirmLabel = 'Confirm', danger = false, onConfirm, onCancel }) {
   const cancelRef = useRef(null);
   const confirmRef = useRef(null);
+  const triggerRef = useRef(null);
 
+  // F2 (Opus fix round 1, WCAG 2.4.3): initial focus + restoration is its
+  // OWN effect, keyed ONLY on [open] — deliberately separate from the
+  // keydown-listener effect below (F3). Captures whatever had focus right
+  // before the sheet opened (the trigger) and returns focus there on
+  // close, instead of leaving activeElement on a button that's about to
+  // unmount/detach (browsers silently drop that to <body>).
   useEffect(() => {
     if (!open) return undefined;
+    triggerRef.current = document.activeElement;
     cancelRef.current?.focus();
+    return () => {
+      triggerRef.current?.focus?.();
+    };
+  }, [open]);
+
+  // F3 (Opus fix round 1, reachable today: SettingsPage subscribes to the
+  // whole inbox store, so its mount-effect quota GET resolving re-renders
+  // SettingsPage — and therefore this sheet — with a brand-new inline
+  // onCancel closure while the sheet is open). Keeping this effect keyed on
+  // [open, onCancel] but SEPARATE from the focus-management effect above
+  // means a fresh onCancel identity only re-subscribes the listener; it can
+  // no longer re-run the initial-focus effect and snap focus back to
+  // Cancel out from under a keyboard user who has already tabbed to
+  // Confirm.
+  useEffect(() => {
+    if (!open) return undefined;
 
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {

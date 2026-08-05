@@ -17,6 +17,7 @@ vi.mock('../lib/db', () => ({ getStorageEstimate: vi.fn().mockResolvedValue(null
 import useSettingsStore from '../stores/settingsStore';
 import useAuthStore from '../stores/authStore';
 import useInboxStore from '../stores/inboxStore';
+import { MAX_LIVE_BYTES } from '../../lib/inboxConfig.js';
 import SettingsPage from './SettingsPage';
 
 const USER = { id: 'u1', email: 'reader@example.com' };
@@ -152,13 +153,20 @@ describe('SettingsPage — Email Inbox management, signed in, address present', 
     expect(writeText).toHaveBeenCalledWith(ADDRESS);
   });
 
-  it('formats the quota meter as MB (one decimal) of 100 MB, with the live message count', () => {
+  // F5 (Opus fix round 1, mutation survivor): the denominator claim is
+  // computed FROM the imported MAX_LIVE_BYTES constant, not a hardcoded
+  // '100 MB' literal — a mutant that changed SettingsPage's MAX_LIVE_MB
+  // derivation (or any future change to the constant itself) would
+  // silently desync a literal-string assertion; a computed one can't.
+  const EXPECTED_MAX_MB = MAX_LIVE_BYTES / MB;
+
+  it('formats the quota meter as MB (one decimal) of the live MAX_LIVE_BYTES cap, with the live message count', () => {
     const bytesUsed = 12.4 * MB; // chosen so bytesUsed / MB is exactly 12.4
     useInboxStore.mockReturnValue(baseInboxState({ address: ADDRESS, bytesUsed, messageCount: 87 }));
 
     const { container } = renderPage();
 
-    expect(container.textContent).toContain('12.4 MB of 100 MB');
+    expect(container.textContent).toContain(`12.4 MB of ${EXPECTED_MAX_MB} MB`);
     expect(container.textContent).toContain('87 messages');
   });
 
@@ -167,15 +175,15 @@ describe('SettingsPage — Email Inbox management, signed in, address present', 
 
     const { container } = renderPage();
 
-    expect(container.textContent).toContain('0.0 MB of 100 MB');
+    expect(container.textContent).toContain(`0.0 MB of ${EXPECTED_MAX_MB} MB`);
   });
 
-  it('meter edge: exactly 100 MB formats as 100.0 MB, not a rounding artifact', () => {
-    useInboxStore.mockReturnValue(baseInboxState({ address: ADDRESS, bytesUsed: 100 * MB, messageCount: 500 }));
+  it('meter edge: exactly MAX_LIVE_BYTES formats as 100.0 MB, not a rounding artifact', () => {
+    useInboxStore.mockReturnValue(baseInboxState({ address: ADDRESS, bytesUsed: MAX_LIVE_BYTES, messageCount: 500 }));
 
     const { container } = renderPage();
 
-    expect(container.textContent).toContain('100.0 MB of 100 MB');
+    expect(container.textContent).toContain(`${EXPECTED_MAX_MB}.0 MB of ${EXPECTED_MAX_MB} MB`);
   });
 
   it('shows a deferred note when deferredCount > 0', () => {
@@ -218,15 +226,27 @@ describe('SettingsPage — Regenerate address (ConfirmSheet-gated)', () => {
     expect(regenerateAddress).not.toHaveBeenCalled();
   });
 
-  it('confirming calls regenerateAddress exactly once', () => {
+  // F1 (Opus fix round 1, mutation survivor): a mutant that fires ALL
+  // THREE address/message actions off a single confirm (e.g. `if (action) {
+  // removeAddress(); clearRead(); }` alongside the correct regenerate call)
+  // still shipped 23/23 green without these negative assertions — the
+  // positive "called once" check alone can't see the two extra calls a
+  // cross-firing mutant makes to sibling actions.
+  it('confirming calls regenerateAddress exactly once — and never removeAddress or clearRead', () => {
     const regenerateAddress = vi.fn();
-    useInboxStore.mockReturnValue(baseInboxState({ address: ADDRESS, regenerateAddress }));
+    const removeAddress = vi.fn();
+    const clearRead = vi.fn();
+    useInboxStore.mockReturnValue(
+      baseInboxState({ address: ADDRESS, regenerateAddress, removeAddress, clearRead })
+    );
 
     const { container } = renderPage();
     fireClick(findButtonByText(container, 'Regenerate address'));
     fireClick(findButtonByText(container, 'Regenerate'));
 
     expect(regenerateAddress).toHaveBeenCalledTimes(1);
+    expect(removeAddress).not.toHaveBeenCalled();
+    expect(clearRead).not.toHaveBeenCalled();
   });
 
   it('canceling never calls regenerateAddress', () => {
@@ -256,15 +276,24 @@ describe('SettingsPage — Remove address (ConfirmSheet-gated)', () => {
     expect(findButtonByText(container, 'Remove')).toBeTruthy();
   });
 
-  it('confirming calls removeAddress exactly once', () => {
+  // F1 (Opus fix round 1): see the regenerate describe block above for why
+  // this permutation is needed — cross-fire on a shared handler is a real
+  // mutant, not a hypothetical one.
+  it('confirming calls removeAddress exactly once — and never regenerateAddress or clearRead', () => {
     const removeAddress = vi.fn();
-    useInboxStore.mockReturnValue(baseInboxState({ address: ADDRESS, removeAddress }));
+    const regenerateAddress = vi.fn();
+    const clearRead = vi.fn();
+    useInboxStore.mockReturnValue(
+      baseInboxState({ address: ADDRESS, removeAddress, regenerateAddress, clearRead })
+    );
 
     const { container } = renderPage();
     fireClick(findButtonByText(container, 'Remove address'));
     fireClick(findButtonByText(container, 'Remove'));
 
     expect(removeAddress).toHaveBeenCalledTimes(1);
+    expect(regenerateAddress).not.toHaveBeenCalled();
+    expect(clearRead).not.toHaveBeenCalled();
   });
 
   it('canceling never calls removeAddress', () => {
@@ -293,15 +322,24 @@ describe('SettingsPage — Clear read messages (ConfirmSheet-gated bulk tombston
     expect(container.textContent).toContain("can't be undone");
   });
 
-  it('confirming calls clearRead exactly once', () => {
+  // F1 (Opus fix round 1): see the regenerate describe block above for why
+  // this permutation is needed — cross-fire on a shared handler is a real
+  // mutant, not a hypothetical one.
+  it('confirming calls clearRead exactly once — and never regenerateAddress or removeAddress', () => {
     const clearRead = vi.fn();
-    useInboxStore.mockReturnValue(baseInboxState({ address: ADDRESS, clearRead }));
+    const regenerateAddress = vi.fn();
+    const removeAddress = vi.fn();
+    useInboxStore.mockReturnValue(
+      baseInboxState({ address: ADDRESS, clearRead, regenerateAddress, removeAddress })
+    );
 
     const { container } = renderPage();
     fireClick(findButtonByText(container, 'Clear read messages'));
     fireClick(findButtonByText(container, 'Clear read'));
 
     expect(clearRead).toHaveBeenCalledTimes(1);
+    expect(regenerateAddress).not.toHaveBeenCalled();
+    expect(removeAddress).not.toHaveBeenCalled();
   });
 
   it('canceling never calls clearRead', () => {

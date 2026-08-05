@@ -41,6 +41,7 @@ const INITIAL_STATE = {
   unreadCount: 0,
   isLoading: false,
   error: null,
+  errorCode: null,
   addressLoaded: false,
 };
 
@@ -233,6 +234,10 @@ describe('openMessage', () => {
 
     expect(result).toBeNull();
     expect(useInboxStore.getState().error).toBe('JSON object requested, multiple (or no) rows returned');
+    // F3 (Opus fix round 1): errorCode is what lets a caller (InboxMessagePage)
+    // distinguish a genuine miss from a transient failure — both used to
+    // collapse to the same `null` result + `error` string.
+    expect(useInboxStore.getState().errorCode).toBe('PGRST116');
     expect(inboxData.markRead).not.toHaveBeenCalled();
   });
 
@@ -247,7 +252,38 @@ describe('openMessage', () => {
 
     expect(result).toBeNull();
     expect(useInboxStore.getState().error).toBe('Message not found');
+    // Supabase-unconfigured resolves null with no data layer to retry
+    // against — the T13 ruling names this a genuine-miss case too,
+    // alongside PGRST116 and deleted_at.
+    expect(useInboxStore.getState().errorCode).toBe('not_found');
     expect(inboxData.markRead).not.toHaveBeenCalled();
+  });
+
+  // F3 (Opus fix round 1): a transient failure (network blip, expired JWT,
+  // any Supabase error that ISN'T PGRST116) must NOT collapse into the same
+  // "genuine miss" bucket as PGRST116/resolved-null — a caller rendering
+  // "This message was removed" for a flaky network error would tell the
+  // user their mail is gone with no way to retry.
+  it('surfaces a distinct errorCode for a transient failure (no .code at all) so callers do not mistake it for a genuine miss', async () => {
+    inboxData.getMessage.mockRejectedValueOnce({ message: 'Failed to fetch' });
+
+    const result = await useInboxStore.getState().openMessage('m1');
+
+    expect(result).toBeNull();
+    expect(useInboxStore.getState().error).toBe('Failed to fetch');
+    expect(useInboxStore.getState().errorCode).toBe('unknown');
+    expect(useInboxStore.getState().errorCode).not.toBe('PGRST116');
+    expect(useInboxStore.getState().errorCode).not.toBe('not_found');
+  });
+
+  // A DIFFERENT real error code (not PGRST116) must pass through as-is, not
+  // get miscategorized as 'unknown' or as a genuine miss.
+  it('passes through a non-PGRST116 error code verbatim (e.g. an auth failure), not miscategorized as a miss', async () => {
+    inboxData.getMessage.mockRejectedValueOnce({ message: 'JWT expired', code: '401' });
+
+    await useInboxStore.getState().openMessage('m1');
+
+    expect(useInboxStore.getState().errorCode).toBe('401');
   });
 
   it('surfaces a markRead failure as store error state without corrupting local read state', async () => {

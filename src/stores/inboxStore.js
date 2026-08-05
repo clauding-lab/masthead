@@ -44,6 +44,13 @@ const useInboxStore = create((set) => ({
   unreadCount: 0,
   isLoading: false,
   error: null,
+  // errorCode (F3, Opus fix round 1): set alongside `error` by openMessage
+  // ONLY, so a caller can tell a genuine miss ('PGRST116' / 'not_found')
+  // apart from a transient/retryable failure (any other code, or 'unknown'
+  // when the thrown error carries no .code at all). Read via
+  // useInboxStore.getState() immediately after openMessage's own promise
+  // settles — see InboxMessagePage.jsx.
+  errorCode: null,
   addressLoaded: false,
 
   // Address + unread count populated on every session-establishing path
@@ -108,16 +115,28 @@ const useInboxStore = create((set) => ({
   // is a TypeError on undefined, itself an unhandled rejection (Fix round
   // 1, F1).
   openMessage: async (id) => {
-    set({ error: null });
+    set({ error: null, errorCode: null });
     let message;
     try {
       message = await inboxData.getMessage(id);
     } catch (err) {
-      set({ error: err?.message || 'Message not found' });
+      // errorCode distinguishes a genuine miss (PGRST116 — purged/foreign
+      // id) from a transient failure (network, expired JWT, an unrelated
+      // Supabase error) — F3, Opus fix round 1: both used to collapse to
+      // the same `null` result + `error` string, and InboxMessagePage
+      // rendered "This message was removed" for EITHER, which is wrong
+      // for a retryable failure. `err?.code || 'unknown'` passes a real
+      // code through verbatim and falls back only when the thrown error
+      // carries none at all.
+      set({ error: err?.message || 'Message not found', errorCode: err?.code || 'unknown' });
       return null;
     }
     if (!message) {
-      set({ error: 'Message not found' });
+      // Supabase isn't configured (inboxData's own guard) — there is no
+      // data layer to retry against, so this collapses to the same
+      // genuine-miss bucket as PGRST116 (T13 ruling names "resolved null"
+      // as one of the miss cases alongside PGRST116/deleted_at).
+      set({ error: 'Message not found', errorCode: 'not_found' });
       return null;
     }
     const wasUnread = message.read_at === null;
@@ -258,6 +277,7 @@ const useInboxStore = create((set) => ({
       unreadCount: 0,
       isLoading: false,
       error: null,
+      errorCode: null,
       addressLoaded: false,
     });
   },

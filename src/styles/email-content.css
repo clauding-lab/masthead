@@ -5,19 +5,43 @@
    `style` ATTRIBUTE (newsletters are unreadable without it — tables and
    inline layout), which means a hostile email can set `position:fixed`,
    negative margins, or a huge `z-index` trying to paint itself over app
-   chrome (the Delete button, the bottom tab bar). `isolation: isolate`
-   gives this element its own stacking context — a z-index set by a child
-   can never escape upward past this boundary — and `position: relative` +
-   `overflow: hidden` clip anything a child tries to position or offset
-   outside this box. This must stay ONE element: the same node that
-   receives the sanitized HTML via dangerouslySetInnerHTML, never split
-   into a "content" node nested inside a separate "containment" wrapper,
-   or a positioned child could still find its way out to the un-contained
-   one. */
+   chrome (the Delete button, the bottom tab bar).
+
+   F4 (Opus fix round 1) corrected a false claim here: `position:relative` +
+   `overflow:hidden` alone do NOT stop a `position:fixed` descendant from
+   escaping this box — per the CSS spec, `position:fixed` is relative to
+   the VIEWPORT unless an ancestor establishes a new containing block via
+   `transform`, `filter`, `perspective`, or `contain`. `position:relative`
+   only creates a containing block for `position:absolute` descendants;
+   `overflow:hidden` only clips content that IS already contained. Neither
+   traps a fixed child on its own — this repo's `PageTransition` happening
+   to set an inline `transform` on an ancestor was accidentally saving the
+   original (untested) claim.
+
+   What each property here actually does:
+   - `isolation: isolate` — own stacking context. A child's z-index (even
+     9999) can never escape upward past this element to sit above app
+     chrome (Delete at z-40, the bottom tab bar at z-50) — verified,
+     genuinely load-bearing.
+   - `contain: layout paint` — THE property that creates a new containing
+     block for `position:fixed` descendants (CSS Containment spec), same
+     mechanism as `transform`/`filter`/`perspective`. This is what actually
+     traps a fixed-position email element inside the box.
+   - `position: relative` — containing block for `position:absolute`
+     descendants (a real, separate case from `fixed`).
+   - `overflow: hidden` — clips anything that IS contained (by `contain` or
+     `position:relative`) from painting outside this box once it can no
+     longer escape.
+
+   This must stay ONE element: the same node that receives the sanitized
+   HTML via dangerouslySetInnerHTML, never split into a "content" node
+   nested inside a separate "containment" wrapper, or a positioned child
+   could still find its way out to the un-contained one. */
 .email-content {
   isolation: isolate;
   position: relative;
   overflow: hidden;
+  contain: layout paint;
   z-index: 0;
 
   font-family: var(--font-serif);

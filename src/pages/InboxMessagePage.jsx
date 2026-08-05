@@ -52,6 +52,15 @@ export default function InboxMessagePage() {
   const [message, setMessage] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [imagesLoaded, setImagesLoaded] = useState(false);
+  // F3 (Opus fix round 1): openMessage returning null previously meant ONE
+  // thing — render "This message was removed" — but it actually covers TWO
+  // different situations: a genuine miss (PGRST116 / resolved-null,
+  // deleted_at is handled separately below) and a transient failure
+  // (network blip, expired JWT, any other Supabase error). Only the first
+  // is terminal; the second must be retryable, or a flaky connection tells
+  // the user their mail is permanently gone.
+  const [retryableError, setRetryableError] = useState(null);
+  const [retryCount, setRetryCount] = useState(0);
 
   // openMessage marks the message read (server + local unreadCount
   // decrement) as a side effect of fetching it — see inboxStore.js. The
@@ -67,16 +76,36 @@ export default function InboxMessagePage() {
     let cancelled = false;
     setIsLoading(true);
     setImagesLoaded(false);
+    setRetryableError(null);
     openMessage(id).then((result) => {
       if (cancelled) return;
+      if (!result) {
+        // useInboxStore.getState() is a point-in-time snapshot, not a
+        // subscription — safe here because this is THIS call's own
+        // errorCode, set synchronously by openMessage right before its
+        // promise settled, read immediately in the very next microtask.
+        const { error: storeError, errorCode } = useInboxStore.getState();
+        const genuineMiss = errorCode === 'PGRST116' || errorCode === 'not_found';
+        if (!genuineMiss) {
+          setMessage(null);
+          setRetryableError(storeError || 'Could not load this message.');
+          setIsLoading(false);
+          return;
+        }
+      }
       setMessage(result);
+      setRetryableError(null);
       setIsLoading(false);
     });
     return () => {
       cancelled = true;
     };
+    // retryCount is a deliberate re-run trigger (id doesn't change on
+    // retry) — see handleRetry below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
+  }, [id, retryCount]);
+
+  const handleRetry = () => setRetryCount((c) => c + 1);
 
   // Sanitize once per fetched message, then compute the blocked variant
   // from that ground truth — "loaded" never round-trips through an
@@ -88,7 +117,14 @@ export default function InboxMessagePage() {
   );
   const blocked = useMemo(() => (sanitized ? blockRemoteImages(sanitized) : null), [sanitized]);
   const showRemoteImages = alwaysLoadRemoteImages || imagesLoaded;
-  const renderedHtml = sanitized == null ? null : showRemoteImages ? sanitized : blocked.html;
+  // F6 (Opus fix round 1, one-char fix): `blocked` is null whenever
+  // `sanitized` is falsy — including '' (sanitizeEmailHtml stripped
+  // html_body down to nothing, e.g. a bare <script> tag). `sanitized ==
+  // null` is false for '', so this ternary used to reach `blocked.html`
+  // with `blocked` still null — a TypeError crash. `blocked?.html` yields
+  // undefined in that case, which is falsy and falls through to the
+  // text_body/excerpt fallback chain below, same as `sanitized === null`.
+  const renderedHtml = sanitized == null ? null : showRemoteImages ? sanitized : blocked?.html;
 
   // Optimistic in the store (remove() tombstones locally before the write
   // resolves); the store issues the server write regardless of whether
@@ -121,7 +157,16 @@ export default function InboxMessagePage() {
 
       {isLoading && <MessageSkeleton />}
 
-      {!isLoading && (!message || message.deleted_at) && (
+      {!isLoading && retryableError && (
+        <EmptyState
+          title="Couldn't load this message"
+          message={retryableError}
+          action="Retry"
+          onAction={handleRetry}
+        />
+      )}
+
+      {!isLoading && !retryableError && (!message || message.deleted_at) && (
         <EmptyState
           title="This message was removed"
           message="This message is no longer available."
@@ -130,7 +175,7 @@ export default function InboxMessagePage() {
         />
       )}
 
-      {!isLoading && message && !message.deleted_at && (
+      {!isLoading && !retryableError && message && !message.deleted_at && (
         <article className="max-w-[680px] mx-auto px-5 py-6">
           <div className="mb-6">
             <h1

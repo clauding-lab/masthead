@@ -92,7 +92,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   useInboxStore.setState({
     address: null, bytesUsed: 0, messageCount: 0, overQuotaSince: null, deferredCount: 0,
-    messages: [], unreadCount: 0, isLoading: false, error: null, addressLoaded: false,
+    messages: [], unreadCount: 0, isLoading: false, error: null, errorCode: null, addressLoaded: false,
   });
   settingsState = { alwaysLoadRemoteImages: false };
   inboxData.markRead.mockResolvedValue(undefined);
@@ -197,7 +197,9 @@ describe('InboxMessagePage — remote image blocking', () => {
       expect(el.getAttribute('srcset') || '').not.toMatch(/https?:/i);
     });
 
-    fireClick(findButtonByText(container, 'Load images (3)'));
+    // 3 <img> elements + 1 <source> element = 4 (F1b: blockedCount counts
+    // any neutralized element, not just <img> — see emailImages.test.js).
+    fireClick(findButtonByText(container, 'Load images (4)'));
 
     const restoredEls = container.querySelectorAll('.email-content img, .email-content source');
     const restoredRefs = Array.from(restoredEls).flatMap((el) => [el.getAttribute('src'), el.getAttribute('srcset')]).filter(Boolean);
@@ -239,6 +241,26 @@ describe('InboxMessagePage — fallback chain', () => {
     const links = Array.from(container.querySelectorAll('a')).filter((a) => a.textContent.trim() === 'View original');
     expect(links.length).toBeGreaterThan(0);
     expect(links[0].getAttribute('href')).toBe(BASE_MESSAGE.web_url);
+  });
+
+  // F6 (Opus fix round 1, one-char fix): `blocked` is null whenever
+  // `sanitized` is falsy (including '' — sanitizeEmailHtml stripped
+  // html_body down to nothing, e.g. a bare <script> tag). The pre-fix
+  // `blocked.html` (no optional chaining) threw a TypeError in that
+  // specific case, since `sanitized == null` is false for '' — it should
+  // fall through to the excerpt fallback instead of crashing.
+  it('does not crash when html_body sanitizes to an empty string — falls through to the fallback chain', async () => {
+    inboxData.getMessage.mockResolvedValueOnce({
+      ...BASE_MESSAGE,
+      html_body: '<script>alert(1)</script>',
+      text_body: null,
+      excerpt: 'Fallback excerpt text.',
+    });
+
+    const { container } = await renderAndFlush();
+
+    expect(container.querySelector('.email-content')).toBeFalsy();
+    expect(container.textContent).toContain('Fallback excerpt text.');
   });
 });
 
@@ -322,6 +344,46 @@ describe('InboxMessagePage — tombstone / removed state', () => {
   });
 });
 
+describe('InboxMessagePage — F3 (Opus fix round 1): transient errors are retryable, not "removed"', () => {
+  it('a transient failure (no error code — e.g. a network blip) shows a retryable error state, NOT "This message was removed"', async () => {
+    inboxData.getMessage.mockRejectedValueOnce({ message: 'Failed to fetch' });
+
+    const { container } = await renderAndFlush();
+
+    expect(container.textContent).not.toContain('This message was removed');
+    expect(container.textContent).toContain('Failed to fetch');
+    expect(findButtonByText(container, 'Retry')).toBeTruthy();
+  });
+
+  it('clicking Retry re-fires openMessage for the same id', async () => {
+    inboxData.getMessage
+      .mockRejectedValueOnce({ message: 'Failed to fetch' })
+      .mockResolvedValueOnce({ ...BASE_MESSAGE, html_body: '<p>recovered</p>' });
+
+    const { container } = await renderAndFlush();
+    expect(inboxData.getMessage).toHaveBeenCalledTimes(1);
+
+    await fireClickAsync(findButtonByText(container, 'Retry'));
+
+    expect(inboxData.getMessage).toHaveBeenCalledTimes(2);
+    expect(inboxData.getMessage).toHaveBeenNthCalledWith(2, MESSAGE_ID);
+    expect(container.textContent).toContain('recovered');
+    expect(container.textContent).not.toContain('Failed to fetch');
+  });
+
+  it('a genuine PGRST116 miss still shows "removed", with no Retry button', async () => {
+    inboxData.getMessage.mockRejectedValueOnce({
+      message: 'JSON object requested, multiple (or no) rows returned',
+      code: 'PGRST116',
+    });
+
+    const { container } = await renderAndFlush();
+
+    expect(container.textContent).toContain('This message was removed');
+    expect(findButtonByText(container, 'Retry')).toBeFalsy();
+  });
+});
+
 describe('InboxMessagePage — delete', () => {
   it('Delete calls store.remove(id) with no confirm, then navigates back to /inbox', async () => {
     inboxData.getMessage.mockResolvedValueOnce({ ...BASE_MESSAGE });
@@ -352,10 +414,16 @@ describe('InboxMessagePage — delete', () => {
 describe('InboxMessagePage — clickjacking containment', () => {
   // Controller ruling (3A final-review carry-forward): the style ATTRIBUTE
   // survives sanitizeEmailHtml, so hostile email CSS (position, negative
-  // margin, huge z-index) could try to overlay app chrome. The container
-  // must isolate its own stacking context and clip anything positioned
-  // outside its box.
-  it('the email content container carries the containment class, whose stylesheet declares isolation + overflow containment', async () => {
+  // margin, huge z-index) could try to overlay app chrome. `isolation`
+  // gives the container its own stacking context (z-index can't escape
+  // upward — genuinely load-bearing, verified). F4 (Opus fix round 1):
+  // `position:relative` + `overflow:hidden` alone do NOT stop a
+  // `position:fixed` descendant from escaping the box — only
+  // `transform`/`filter`/`perspective`/`contain` create a new containing
+  // block for fixed descendants. `contain: layout paint` is the property
+  // that actually does that job, so THAT is what gets pinned here (not
+  // `overflow`, which the pre-fix test asserted for the wrong reason).
+  it('the email content container carries the containment class, whose stylesheet declares isolation + contain (the property that actually traps position:fixed descendants)', async () => {
     inboxData.getMessage.mockResolvedValueOnce({
       ...BASE_MESSAGE,
       html_body: '<div style="position:fixed;z-index:9999">x</div>',
@@ -374,7 +442,7 @@ describe('InboxMessagePage — clickjacking containment', () => {
     const cssPath = path.join(globalThis.process.cwd(), 'src/styles/email-content.css');
     const css = fs.readFileSync(cssPath, 'utf8');
     expect(css).toMatch(/\.email-content\s*{[^}]*isolation\s*:\s*isolate/s);
-    expect(css).toMatch(/\.email-content\s*{[^}]*overflow\s*:\s*hidden/s);
+    expect(css).toMatch(/\.email-content\s*{[^}]*contain\s*:\s*layout paint/s);
   });
 });
 

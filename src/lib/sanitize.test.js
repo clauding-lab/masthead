@@ -51,9 +51,24 @@ describe('sanitizeEmailHtml', () => {
     ['<a href="javascript:alert(1)">x</a>', 'javascript:'],
     ['<svg><script>alert(1)</script></svg>', '<script'],
     ['<math><mtext>x</mtext></math>', '<math'],
-    ['<style>body{display:none}</style><p>hi</p>', '<style'],
   ])('neutralizes %s', (payload, marker) => {
     expect(sanitizeEmailHtml(payload)).not.toContain(marker);
+  });
+
+  // F2 (Opus fix round 1): a TOP-LEVEL `<style>...</style><p>hi</p>` passes
+  // `.not.toContain('<style')` for the WRONG reason — the HTML parser hoists
+  // a leading <style> (before any other body content) into an implicit
+  // <head>, and DOMPurify's serialized output only reflects body content, so
+  // the tag "disappears" as a position artifact, not because FORBID_TAGS
+  // actually excluded it. A NESTED `<style>` (inside a <div>, forcing normal
+  // "in body" flow — never hoisted) is the only fixture that genuinely
+  // exercises the policy: without 'style' in EMAIL_CONFIG.FORBID_TAGS, this
+  // survives and lets a newsletter inject document-wide CSS, including a
+  // url() background beacon.
+  it('forbids a NESTED style element, not just a top-level one', () => {
+    const out = sanitizeEmailHtml('<div><style>body{display:none}</style><p>hi</p></div>');
+    expect(out).not.toContain('<style');
+    expect(out).not.toContain('display:none');
   });
 
   // The core Task 16 spec pin: the style ATTRIBUTE (not element) survives

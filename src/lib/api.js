@@ -36,15 +36,22 @@ export async function discoverRSS(url) {
 }
 
 // Security review fix round 1, F1: this is the SINGLE funnel both the
-// premium/heart-from-favorites path (via library.js#extractQueued) and the
+// heart-from-favorites path (via library.js#extractQueued) and the
 // plain-URL path (articleStore#fetchArticle, reached unguarded from
 // ReaderPage's History-shaped entry point — a hearted inbox message read
 // once ends up in history with the minted permalink as its url, and
 // HistoryCard links to /article/:id with NO fromFavorites, so
 // resolveReaderSource's inbox guard never runs) share to reach
 // POST /api/extract. Refusing here — before any fetch — closes both
-// entry points, plus the identical pre-existing gap this shape had for
-// premium records, with one guard instead of duplicating it per call site.
+// entry points with one guard instead of duplicating it per call site.
+//
+// Fix round 2, N1 (comment accuracy): this does NOT close the analogous
+// gap for premium records. isInboxPermalink only matches the
+// `/inbox/message/<uuid>` path shape — a premium article's URL is the
+// publisher's own URL and never matches it, so a premium record reopened
+// via History (the same fromFavorites-less path) still reaches this
+// function and falls through to a real fetch. That gap pre-exists this fix
+// and is tracked separately, not closed here.
 export async function extractArticle(articleUrl, sourceId) {
   if (isInboxPermalink(articleUrl)) {
     throw new Error('Inbox messages are not extractable');

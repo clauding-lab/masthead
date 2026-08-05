@@ -10,7 +10,7 @@ import Icon from '../components/ui/Icon';
 import Tag from '../components/ui/Tag';
 import { addToHistory, getFavorite } from '../lib/db';
 import { pushHistoryEntry } from '../lib/sync';
-import { resolveReaderSource, attachBodyToSaved } from '../lib/library';
+import { resolveReaderSource, attachBodyToSaved, isInboxRecord } from '../lib/library';
 import { formatDate, formatReadingTime } from '../lib/utils';
 import useSwipeBack from '../hooks/useSwipeBack';
 import { sanitizeArticleHtml } from '../lib/sanitize';
@@ -100,8 +100,16 @@ export default function ReaderPage() {
   }, [article, fromFavorites, id]);
 
   // Auto-mark as read in history
+  //
+  // Fix round 2, N3: an inbox record must never enter History — its own
+  // reopen from a history entry would hit the same api.js#extractArticle
+  // funnel guard (F1) and show "Inbox messages are not extractable"
+  // forever, and for a signed-in user pushHistoryEntry would leak the
+  // minted permalink into cloud user_history. Checked via isInboxRecord
+  // (savedVia off the resolved article when present, url always) — the
+  // spec's §11 out-of-scope list does NOT exclude this case.
   useEffect(() => {
-    if (article && !historyRecorded.current && url) {
+    if (article && !historyRecorded.current && url && !isInboxRecord({ savedVia: article.savedVia, url })) {
       historyRecorded.current = true;
       addToHistory({
         id: article.id || id,

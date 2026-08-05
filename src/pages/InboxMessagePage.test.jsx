@@ -545,6 +545,28 @@ describe('InboxMessagePage — heart / save to library (T17, moved from T16)', (
     expect(container.querySelector('[aria-label="Remove from favorites"]')).toBeTruthy();
   });
 
+  // Fix round 2, N2: savingHeartRef's release had zero coverage — deleting
+  // it leaves every OTHER heart test green, but wedges the guard closed
+  // forever after one failed save (the second click's handleHeart call
+  // would immediately return, never even calling saveInboxMessage again).
+  // A rejected save must not prevent a retry.
+  it('a rejected save does not wedge the heart — a second click still retries and succeeds', async () => {
+    inboxData.getMessage.mockResolvedValueOnce({ ...BASE_MESSAGE, html_body: '<p>x</p>' });
+    isFavorited.mockResolvedValueOnce(false);
+    saveInboxMessage
+      .mockRejectedValueOnce(new Error('network blip'))
+      .mockResolvedValueOnce({ id: 'inboxsavedid9999', url: 'https://x.test/inbox/message/' + MESSAGE_ID });
+
+    const { container } = await renderAndFlush();
+    const heart = container.querySelector('[aria-label="Save to favorites"]');
+
+    await fireClickAsync(heart);
+    await fireClickAsync(heart);
+
+    expect(saveInboxMessage).toHaveBeenCalledTimes(2);
+    expect(container.querySelector('[aria-label="Remove from favorites"]')).toBeTruthy();
+  });
+
   it('un-hearting a saved message fires deleteSaved (the removeSaved/tombstone path) and flips back to unsaved', async () => {
     inboxData.getMessage.mockResolvedValueOnce({ ...BASE_MESSAGE, html_body: '<p>x</p>' });
     isFavorited.mockResolvedValueOnce(true);

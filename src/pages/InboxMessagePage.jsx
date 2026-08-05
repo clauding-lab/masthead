@@ -162,9 +162,15 @@ export default function InboxMessagePage() {
       }
     } catch (err) {
       console.error('Failed to toggle saved state:', err);
+    } finally {
+      // Fix round 2, N2: both resets live in `finally` so a future `return`
+      // or rethrow added inside the `try` can't skip them and wedge the
+      // guard permanently closed after one failed save — the earlier
+      // sequential-after-try/catch shape happened to run unconditionally
+      // today (the catch above never rethrows), but nothing enforced that.
+      savingHeartRef.current = false;
+      setSavingHeart(false);
     }
-    savingHeartRef.current = false;
-    setSavingHeart(false);
   };
 
   // Sanitize once per fetched message, then compute the blocked variant

@@ -49,3 +49,38 @@ describe('kind-aware defaults and selectors', () => {
     expect(useSettingsStore.getState().getEffectiveSourcesByKind('news').map((s) => s.id)).toEqual(['custom-1']);
   });
 });
+
+// Task 16: security-relevant default (remote images in newsletter bodies
+// are a tracking-pixel vector — InboxMessagePage.jsx blocks them unless
+// this is explicitly opted into), persisted like the theme/fontSize
+// siblings above.
+describe('alwaysLoadRemoteImages', () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it('defaults to false with no localStorage value', () => {
+    useSettingsStore.getState().initFromStorage();
+    expect(useSettingsStore.getState().alwaysLoadRemoteImages).toBe(false);
+  });
+
+  it('setAlwaysLoadRemoteImages(true) updates state and persists to localStorage', () => {
+    useSettingsStore.getState().setAlwaysLoadRemoteImages(true);
+    expect(useSettingsStore.getState().alwaysLoadRemoteImages).toBe(true);
+    expect(localStorage.getItem('masthead-alwaysLoadRemoteImages')).toBe('true');
+  });
+
+  it('initFromStorage restores a persisted true value', () => {
+    localStorage.setItem('masthead-alwaysLoadRemoteImages', 'true');
+    useSettingsStore.getState().initFromStorage();
+    expect(useSettingsStore.getState().alwaysLoadRemoteImages).toBe(true);
+  });
+
+  it('setAlwaysLoadRemoteImages(false) flips it back off and persists', () => {
+    localStorage.setItem('masthead-alwaysLoadRemoteImages', 'true');
+    useSettingsStore.getState().initFromStorage();
+    useSettingsStore.getState().setAlwaysLoadRemoteImages(false);
+    expect(useSettingsStore.getState().alwaysLoadRemoteImages).toBe(false);
+    expect(localStorage.getItem('masthead-alwaysLoadRemoteImages')).toBe('false');
+  });
+});

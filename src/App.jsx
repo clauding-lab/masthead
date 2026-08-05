@@ -9,6 +9,8 @@ import SavedPage from './pages/SavedPage';
 import SavePage from './pages/SavePage';
 import HistoryPage from './pages/HistoryPage';
 import SettingsPage from './pages/SettingsPage';
+import InboxPage from './pages/InboxPage';
+import InboxMessagePage from './pages/InboxMessagePage';
 import OnboardingPage from './pages/OnboardingPage';
 import useSettingsStore from './stores/settingsStore';
 import useAuthStore from './stores/authStore';
@@ -66,6 +68,8 @@ export default function App() {
             <Route path="/save" element={<SavePage />} />
             <Route path="/history" element={<HistoryPage />} />
             <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/inbox" element={<InboxPage />} />
+            <Route path="/inbox/message/:id" element={<ErrorBoundary><InboxMessagePage /></ErrorBoundary>} />
           </Routes>
         </PageTransition>
       </main>

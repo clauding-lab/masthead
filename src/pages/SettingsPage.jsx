@@ -2,13 +2,81 @@ import { useState, useEffect } from 'react';
 import useSettingsStore from '../stores/settingsStore';
 import useAuthStore from '../stores/authStore';
 import usePremiumStore from '../stores/premiumStore';
+import useInboxStore from '../stores/inboxStore';
 import { getStorageEstimate } from '../lib/db';
 import SourceToggleRow from '../components/SourceToggleRow';
 import PremiumSourceRow from '../components/PremiumSourceRow';
 import AddSourceModal from '../components/AddSourceModal';
+import ConfirmSheet from '../components/ConfirmSheet';
 import Icon from '../components/ui/Icon';
 import sourcesData from '../../lib/sources.json';
 import { sourceKind } from '../lib/sourceKind';
+import { MAX_LIVE_BYTES } from '../../lib/inboxConfig.js';
+
+const BYTES_PER_MB = 1024 * 1024;
+const MAX_LIVE_MB = MAX_LIVE_BYTES / BYTES_PER_MB; // 100 — a round number by design (spec's 100 MB cap)
+
+// Confirm-sheet copy for the three ConfirmSheet-gated inbox address actions
+// (T18 — spec §4.2 bulk remedy for Clear read). All three are effectively
+// irreversible from the user's point of view (mail stops routing, or
+// messages are gone for good), so all three render with danger styling.
+const INBOX_CONFIRM = {
+  regenerate: {
+    title: 'Regenerate address?',
+    message: 'This permanently stops mail sent to the old address — update your subscriptions after.',
+    confirmLabel: 'Regenerate',
+  },
+  remove: {
+    title: 'Remove inbox address?',
+    message: "This stops mail sent to your address — you can request a new one anytime. Your existing messages won't be affected.",
+    confirmLabel: 'Remove',
+  },
+  clearRead: {
+    title: 'Clear read messages?',
+    message: "This permanently deletes every read message in your inbox. This can't be undone.",
+    confirmLabel: 'Clear read',
+  },
+};
+
+function formatQuotaMB(bytes) {
+  return (bytes / BYTES_PER_MB).toFixed(1);
+}
+
+// Address + Copy button. Local to SettingsPage (mirrors the file's existing
+// ThemeOption/SettingSection local-component convention) rather than a new
+// shared file — InboxPage.jsx's own CopyableAddress is out of this task's
+// file scope (task-18-brief.md lists only ConfirmSheet.jsx + SettingsPage.jsx).
+// Same clipboard contract as InboxPage's: swallow a permission denial rather
+// than let it surface as an unhandled rejection.
+function EmailAddressRow({ address }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    if (!navigator.clipboard?.writeText) return;
+    navigator.clipboard
+      .writeText(address)
+      .then(() => setCopied(true))
+      .catch(() => {});
+  };
+
+  return (
+    <div
+      className="flex items-center gap-2 px-3 py-2 rounded-lg mb-3"
+      style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
+    >
+      <span className="font-mono text-sm flex-1 min-w-0 truncate" style={{ color: 'var(--text-primary)' }}>
+        {address}
+      </span>
+      <button
+        onClick={handleCopy}
+        className="font-ui text-xs font-medium px-2.5 py-1 rounded-md shrink-0"
+        style={{ backgroundColor: 'var(--accent)', color: 'var(--accent-contrast)' }}
+      >
+        {copied ? 'Copied' : 'Copy'}
+      </button>
+    </div>
+  );
+}
 
 const FONT_SIZES = [
   { value: 14, label: 'Small' },
@@ -57,11 +125,20 @@ function SettingSection({ title, children }) {
 }
 
 export default function SettingsPage() {
-  const { theme, fontSize, selectedSourceIds, customSources, setTheme, setFontSize, toggleSource, addCustomSource, removeCustomSource } = useSettingsStore();
+  const {
+    theme, fontSize, selectedSourceIds, customSources, alwaysLoadRemoteImages,
+    setTheme, setFontSize, toggleSource, addCustomSource, removeCustomSource, setAlwaysLoadRemoteImages,
+  } = useSettingsStore();
   const { user, signInWithGoogle, signOut } = useAuthStore();
   const premiumFeeds = usePremiumStore((s) => s.feeds);
+  const {
+    address: inboxAddress, bytesUsed, messageCount, deferredCount,
+    regenerateAddress, removeAddress, clearRead, refreshQuota,
+  } = useInboxStore();
   const [storage, setStorage] = useState(null);
   const [showAddModal, setShowAddModal] = useState(false);
+  // Which ConfirmSheet is open, if any: 'regenerate' | 'remove' | 'clearRead' | null.
+  const [inboxConfirmAction, setInboxConfirmAction] = useState(null);
 
   useEffect(() => {
     getStorageEstimate().then(setStorage);
@@ -73,6 +150,25 @@ export default function SettingsPage() {
       usePremiumStore.getState().loadFeeds();
     }
   }, [user]);
+
+  // Quota freshness (T18, F9 T15 review): bytesUsed/messageCount/deferredCount
+  // are only written by bootstrap + the address actions, so they can be
+  // stale by the time this section is viewed. A lightweight GET refresh on
+  // mount keeps the meter honest; refreshQuota swallows its own errors and
+  // is a no-op when signed out.
+  useEffect(() => {
+    if (user) {
+      refreshQuota();
+    }
+  }, [user, refreshQuota]);
+
+  const handleInboxConfirm = () => {
+    const action = inboxConfirmAction;
+    setInboxConfirmAction(null);
+    if (action === 'regenerate') regenerateAddress();
+    else if (action === 'remove') removeAddress();
+    else if (action === 'clearRead') clearRead();
+  };
 
   const premiumFeedsByKind = premiumFeeds.reduce((acc, feed) => {
     (acc[feed.kind] ||= []).push(feed);
@@ -234,6 +330,103 @@ export default function SettingsPage() {
         </div>
       </SettingSection>
 
+      {/* Inbox — remote images in newsletter bodies are a tracking-pixel /
+          read-receipt vector, so InboxMessagePage.jsx blocks them by
+          default; this opts back into always loading them automatically. */}
+      <SettingSection title="Inbox">
+        <div className="px-4 py-3 flex items-center gap-3">
+          <div className="flex-1 min-w-0">
+            <p className="font-ui text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+              Load images automatically
+            </p>
+            <p className="font-ui text-xs mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
+              Off by default — newsletter images can be used to track when you open a message.
+            </p>
+          </div>
+          <button
+            onClick={() => setAlwaysLoadRemoteImages(!alwaysLoadRemoteImages)}
+            className="relative w-11 h-6 rounded-full shrink-0 transition-colors"
+            style={{ backgroundColor: alwaysLoadRemoteImages ? 'var(--accent)' : 'var(--border)' }}
+            aria-label="Load remote images automatically"
+            aria-pressed={alwaysLoadRemoteImages}
+          >
+            <div
+              className="absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform"
+              style={{ transform: alwaysLoadRemoteImages ? 'translateX(22px)' : 'translateX(2px)' }}
+            />
+          </button>
+        </div>
+
+        {/* Email inbox address management (T18) — server-owned, so gated on
+            a session the same way premium feeds are gated above. */}
+        {user && (
+          <div className="px-4 py-3" style={{ borderTop: '1px solid var(--divider)' }}>
+            {inboxAddress && <EmailAddressRow address={inboxAddress} />}
+            {/* Final whole-branch review, F1: hoisted out of the
+                `inboxAddress ?` branch — removeAddress() is row-preserving,
+                so the meter and Clear-read row must survive address removal
+                as long as retained messages exist (`messageCount > 0`).
+                Regenerate/Remove stay address-gated below — there's no
+                address left to act on once it's null. */}
+            {(inboxAddress || messageCount > 0) && (
+              <>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="font-ui text-sm" style={{ color: 'var(--text-primary)' }}>
+                    Inbox storage
+                  </span>
+                  <span className="font-mono text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                    {formatQuotaMB(bytesUsed)} MB of {MAX_LIVE_MB} MB · {messageCount} message{messageCount === 1 ? '' : 's'}
+                  </span>
+                </div>
+                <div className="h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--bg-surface)' }}>
+                  <div
+                    className="h-full rounded-full"
+                    style={{
+                      width: `${Math.min((bytesUsed / MAX_LIVE_BYTES) * 100, 100)}%`,
+                      backgroundColor: 'var(--accent)',
+                    }}
+                  />
+                </div>
+                {deferredCount > 0 && (
+                  <p className="font-ui text-xs mt-2" style={{ color: 'var(--text-tertiary)' }}>
+                    {deferredCount} message{deferredCount === 1 ? '' : 's'} deferred while your inbox was full.
+                  </p>
+                )}
+                <button
+                  onClick={() => setInboxConfirmAction('clearRead')}
+                  className="mt-3 w-full px-3 py-1.5 rounded-lg font-ui text-xs font-medium"
+                  style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
+                >
+                  Clear read messages
+                </button>
+              </>
+            )}
+            {inboxAddress ? (
+              <div className="flex items-center gap-2 mt-2">
+                <button
+                  onClick={() => setInboxConfirmAction('regenerate')}
+                  className="flex-1 px-3 py-1.5 rounded-lg font-ui text-xs font-medium"
+                  style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
+                >
+                  Regenerate address
+                </button>
+                <button
+                  onClick={() => setInboxConfirmAction('remove')}
+                  className="flex-1 px-3 py-1.5 rounded-lg font-ui text-xs font-medium"
+                  style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--error)', border: '1px solid var(--border)' }}
+                >
+                  Remove address
+                </button>
+              </div>
+            ) : (
+              <p className="font-ui text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                Get your inbox address from the Inbox tab.
+              </p>
+            )}
+          </div>
+        )}
+      </SettingSection>
+
       {/* Storage */}
       <SettingSection title="Storage">
         <div className="px-4 py-3">
@@ -288,6 +481,18 @@ export default function SettingsPage() {
 
       {showAddModal && (
         <AddSourceModal onAdd={handleAddSource} onClose={() => setShowAddModal(false)} />
+      )}
+
+      {inboxConfirmAction && (
+        <ConfirmSheet
+          open
+          title={INBOX_CONFIRM[inboxConfirmAction].title}
+          message={INBOX_CONFIRM[inboxConfirmAction].message}
+          confirmLabel={INBOX_CONFIRM[inboxConfirmAction].confirmLabel}
+          danger
+          onConfirm={handleInboxConfirm}
+          onCancel={() => setInboxConfirmAction(null)}
+        />
       )}
     </div>
   );

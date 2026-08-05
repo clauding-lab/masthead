@@ -9,6 +9,7 @@ const {
   resetPremiumMock, newsSetState, blogsSetState, initFromStorageMock,
   loadFeedsMock, getEnabledPremiumIdsByKindMock, newsFetchFeedsMock, blogsFetchFeedsMock,
   getSessionMock, onAuthStateChangeMock,
+  resetInboxMock, bootstrapInboxMock,
 } = vi.hoisted(() => ({
   resetPremiumMock: vi.fn(),
   newsSetState: vi.fn(),
@@ -20,6 +21,8 @@ const {
   blogsFetchFeedsMock: vi.fn(),
   getSessionMock: vi.fn(),
   onAuthStateChangeMock: vi.fn(),
+  resetInboxMock: vi.fn(),
+  bootstrapInboxMock: vi.fn(),
 }));
 
 vi.mock('../lib/supabase', () => ({
@@ -57,6 +60,14 @@ vi.mock('./feedStore', () => ({
   useNewsFeedStore: { setState: newsSetState, getState: () => ({ fetchFeeds: newsFetchFeedsMock }) },
   useBlogsFeedStore: { setState: blogsSetState, getState: () => ({ fetchFeeds: blogsFetchFeedsMock }) },
 }));
+vi.mock('./inboxStore', () => ({
+  default: {
+    getState: () => ({
+      reset: resetInboxMock,
+      bootstrap: bootstrapInboxMock,
+    }),
+  },
+}));
 
 import { supabase } from '../lib/supabase';
 import { clearUserData } from '../lib/localData';
@@ -72,6 +83,7 @@ beforeEach(() => {
   onAuthStateChangeMock.mockImplementation(() => {});
   loadFeedsMock.mockResolvedValue(undefined);
   getEnabledPremiumIdsByKindMock.mockReturnValue([]);
+  bootstrapInboxMock.mockResolvedValue(undefined);
 });
 
 afterEach(() => {
@@ -90,6 +102,7 @@ describe('signOut sweep', () => {
     expect(initFromStorageMock).toHaveBeenCalledTimes(1);
 
     expect(resetPremiumMock).toHaveBeenCalledTimes(1);
+    expect(resetInboxMock).toHaveBeenCalledTimes(1);
 
     const emptyState = { headlines: [], fetchedAt: null, error: null, premiumIssues: [], premiumAuthFailed: false };
     expect(newsSetState).toHaveBeenCalledWith(emptyState);
@@ -104,6 +117,7 @@ describe('signOut sweep', () => {
     await expect(useAuthStore.getState().signOut()).resolves.toBeUndefined();
 
     expect(resetPremiumMock).toHaveBeenCalledTimes(1);
+    expect(resetInboxMock).toHaveBeenCalledTimes(1);
     expect(newsSetState).toHaveBeenCalledTimes(1);
     expect(blogsSetState).toHaveBeenCalledTimes(1);
   });
@@ -215,5 +229,77 @@ describe('premium feed bootstrap on session establish (final-review Critical 1)'
     expect(blogsFetchFeedsMock).not.toHaveBeenCalled();
 
     consoleSpy.mockRestore();
+  });
+});
+
+// Landmine 20's pattern, extended to the Inbox surface (Phase 3b): the
+// inbox address + unread count must populate on both session-establishing
+// paths, same as premium feeds above — copying that suite's shapes.
+describe('inbox bootstrap on session establish (landmine 20, extended)', () => {
+  beforeEach(() => {
+    useAuthStore.setState({ user: null, session: null, isLoading: true, isInitialized: false });
+  });
+
+  it('a restored session (getSession returns a user) triggers inbox bootstrap', async () => {
+    getSessionMock.mockResolvedValue({ data: { session: { user: { id: 'u1' } } } });
+
+    await useAuthStore.getState().initAuth();
+    await vi.waitFor(() => expect(bootstrapInboxMock).toHaveBeenCalledTimes(1));
+  });
+
+  it('a signed-out boot (no session) never calls inbox bootstrap', async () => {
+    getSessionMock.mockResolvedValue({ data: { session: null } });
+
+    await useAuthStore.getState().initAuth();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(bootstrapInboxMock).not.toHaveBeenCalled();
+  });
+
+  it('a fresh sign-in via onAuthStateChange (no prior user) triggers inbox bootstrap', async () => {
+    getSessionMock.mockResolvedValue({ data: { session: null } });
+    await useAuthStore.getState().initAuth();
+    const onChange = onAuthStateChangeMock.mock.calls[0][0];
+
+    onChange('SIGNED_IN', { user: { id: 'u2' } });
+
+    await vi.waitFor(() => expect(bootstrapInboxMock).toHaveBeenCalledTimes(1));
+  });
+
+  it('a token refresh (session change with an already-known user) does not re-trigger inbox bootstrap', async () => {
+    getSessionMock.mockResolvedValue({ data: { session: { user: { id: 'u1' } } } });
+    await useAuthStore.getState().initAuth();
+    await vi.waitFor(() => expect(bootstrapInboxMock).toHaveBeenCalledTimes(1));
+    bootstrapInboxMock.mockClear();
+    const onChange = onAuthStateChangeMock.mock.calls[0][0];
+
+    onChange('TOKEN_REFRESHED', { user: { id: 'u1' } });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(bootstrapInboxMock).not.toHaveBeenCalled();
+  });
+
+  it('an inbox bootstrap rejection is swallowed — boot completes regardless', async () => {
+    getSessionMock.mockResolvedValue({ data: { session: { user: { id: 'u1' } } } });
+    bootstrapInboxMock.mockRejectedValue(new Error('inbox API down'));
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    await expect(useAuthStore.getState().initAuth()).resolves.toBeUndefined();
+    await vi.waitFor(() => expect(consoleSpy).toHaveBeenCalled());
+
+    expect(useAuthStore.getState().isInitialized).toBe(true);
+
+    consoleSpy.mockRestore();
+  });
+
+  it('both premium and inbox bootstrap fire independently on the same session establish', async () => {
+    getSessionMock.mockResolvedValue({ data: { session: { user: { id: 'u1' } } } });
+
+    await useAuthStore.getState().initAuth();
+
+    await vi.waitFor(() => {
+      expect(loadFeedsMock).toHaveBeenCalledTimes(1);
+      expect(bootstrapInboxMock).toHaveBeenCalledTimes(1);
+    });
   });
 });
